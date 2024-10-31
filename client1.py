@@ -21,7 +21,11 @@ def connectGridActivate():
     IP_entry.grid(row=2, column=0, ipady=10)
     labelPort.grid(row=3, column=0, ipady=10)
     PORT_entry.grid(row=4, column=0, ipady=10)
-    connect.grid(row=5, column=0, ipady=10)
+    labelUser.grid(row=5, column=0, ipady=10)
+    userName_entry.grid(row=6, column=0, ipady=10)
+    labelPass.grid(row=7, column=0, ipady=10)
+    PASS_entry.grid(row=8, column=0, ipady=10)
+    connect.grid(row=9, column=0, ipady=10)
 
 
 def connectGridDeactivate():
@@ -31,8 +35,12 @@ def connectGridDeactivate():
     labelPort.grid_forget()
     PORT_entry.grid_forget()
 
-def authenGridActivate():
-    labelUser.grid(row=1, column=0, ipady=10)
+    labelUser.grid_forget()
+    userName_entry.grid_forget()
+    labelPass.grid_forget()
+    PASS_entry.grid_forget()
+
+
 def connect():
     IP = IP_entry.get()
     PORT = PORT_entry.get()
@@ -50,57 +58,46 @@ def connect():
 
 
 
-# Create the main window
 window = tk.Tk()
 window.title("File Sharing Cloud Server")
-window.geometry("300x250")
+window.geometry("275x500")
 
-# Label for instructions
 labelServer = tk.Label(window, text="Enter address of the file server:")
 labelServer.grid(row=1, column=0, ipady=10)
 
-# Entry field for the file name
 IP_entry = tk.Entry(window)
 IP_entry.grid(row=2, column=0, ipady=10)
 
-# Label for instructions
 labelPort = tk.Label(window, text="Enter port of the file server:")
 labelPort.grid(row=3, column=0, ipady=10)
 
-# Entry field for the file name
 PORT_entry = tk.Entry(window)
 PORT_entry.grid(row=4, column = 0, ipady = 10)
 
-# Button to trigger file upload
-connect = tk.Button(window, text="Connect", command=connect)
-connect.grid(row = 5, column =0, ipady =10)
 
 
 
 
-# Label for user credentials
+
+
 labelUser = tk.Label(window, text="Enter your username for authentication:")
-labelUser.grid(row=1, column=0, ipady=10)
-hideWidget(labelUser)
+labelUser.grid(row=5, column=0, ipady=10)
 
-'''
-# Entry field for the file name
-IP_entry = tk.Entry(window)
-IP_entry.grid(row=2, column=0, ipady=10)
 
-# Label for instructions
-labelPort = tk.Label(window, text="Enter port of the file server:")
-labelPort.grid(row=3, column=0, ipady=10)
+userName_entry = tk.Entry(window)
+userName_entry.grid(row=6, column=0, ipady=10)
 
-# Entry field for the file name
-PORT_entry = tk.Entry(window)
-PORT_entry.grid(row=4, column = 0, ipady = 10)
 
-# Button to trigger file upload
+labelPass = tk.Label(window, text="Enter your password for the server:")
+labelPass.grid(row=7, column=0, ipady=10)
+
+PASS_entry = tk.Entry(window, show="*")
+PASS_entry.grid(row=8, column = 0, ipady = 10)
+
 connect = tk.Button(window, text="Connect", command=connect)
-connect.grid(row = 5, column =0, ipady =10)
-'''
-# Run the application
+connect.grid(row = 9, column =0, ipady =10)
+
+
 window.mainloop()
 
 
