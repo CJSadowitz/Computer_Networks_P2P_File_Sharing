@@ -1,8 +1,10 @@
 import tkinter as tk
+from tkinter import *
 from tkinter import messagebox
 import os
 import time
 import socket
+import json
 
 IP = 'localhost'
 PORT = 4450
@@ -50,13 +52,29 @@ def connect():
         client.connect(ADDR)
         messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
         connectGridDeactivate()
-        authenGridActivate()
+        directory.grid(row=1, column=0, ipady=10)
 
     else:
         messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
+        client.close()
 
+def direct():
+    try:
+        cmd = "DIR"
+        client.send(cmd.encode(FORMAT))
 
+        data = client.recv(4096)
+        contents = json.loads(data.decode('utf-8'))
+        #messagebox.showinfo("Directory Contents", "\n".join(contents))
+        #hideWidget(directory)
 
+        mylist.grid(rowspan=len(contents))
+        mylist.delete(0, tk.END)
+        for line in range(len(contents)):
+            mylist.insert(END, str(contents[line]))
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to load directory: {e}")
 
 window = tk.Tk()
 window.title("File Sharing Cloud Server")
@@ -97,16 +115,21 @@ PASS_entry.grid(row=8, column = 0, ipady = 10)
 connect = tk.Button(window, text="Connect", command=connect)
 connect.grid(row = 9, column =0, ipady =10)
 
+directory = tk.Button(window, text="Load Directory", command=direct)
+directory.grid(row = 1, column = 0, ipady = 10)
+hideWidget(directory)
+
+scrollbar = tk.Scrollbar(window, orient="vertical")
+#scrollbar.grid(rowspan=10)
+#hideWidget(scrollbar)
+
+mylist = Listbox(window, yscrollcommand=scrollbar.set)
+
+mylist.grid()
+hideWidget(mylist)
+
+scrollbar.config(command=mylist.yview)
+
 
 window.mainloop()
 
-
-
-while True:  ### multiple communications
-    data = client.recv(SIZE).decode(FORMAT)
-    cmd, msg = data.split("@")
-    if cmd == "OK":
-        print(f"{msg}")
-    elif cmd == "DISCONNECTED":
-        print(f"{msg}")
-        break
