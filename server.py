@@ -25,7 +25,7 @@ def handle_client(conn, addr):
         send_data = "OK@"
 
         if data == "LOGOUT":
-            break
+            conn.close()
 
         elif data == "TASK":
             send_data += "Yarg be a task.\n"
@@ -37,6 +37,27 @@ def handle_client(conn, addr):
             contents = os.listdir(directory_path)
             data = json.dumps(contents)  # Convert list to JSON string
             conn.sendall(data.encode("utf-8"))
+            conn.close()
+        elif data == "DOWNLOAD":
+            filename = conn.recv(SIZE).decode(FORMAT)
+
+            filesize = bytes(os.path.getsize(filename))
+            conn.send(filesize)
+
+            with open(filename, "rb") as f:
+                while True:
+                    # read the bytes from the file
+                    bytes_read = f.read(SIZE)
+                    if not bytes_read:
+                        # file transmitting is done
+                        break
+                    # we use sendall to assure transimission in
+                    # busy networks
+                    conn.sendall(bytes_read)
+            conn.close()
+
+
+
         else:
             send_data += "Unknown command\n"
             conn.send(send_data.encode(FORMAT))
@@ -45,7 +66,28 @@ def handle_client(conn, addr):
     conn.close()
 
 
+'''
+def authenticate(client_socket):
+    # Prompt for username
+    client_socket.send("Username: ".encode())
+    username = client_socket.recv(1024).decode().strip()
 
+    # Prompt for password
+    #client_socket.send("Password: ".encode())
+    password = client_socket.recv(1024).decode().strip()
+    print(username)
+    if username != "user":
+        client_socket.close()
+        print("ksgh")
+
+    # Verify credentials
+    if username in user_credentials and user_credentials[username] == password:
+        client_socket.send("Login successful!".encode())
+        return True
+    else:
+        client_socket.send("Invalid credentials. Connection closed.".encode())
+        return False
+    '''
 
 
 def main():
