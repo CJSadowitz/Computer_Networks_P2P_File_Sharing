@@ -1,11 +1,13 @@
 import tkinter as tk
 from tkinter import *
 from tkinter import messagebox
+from tkinter import filedialog
 import os
 import time
 import socket
 import json
 import tqdm
+import re
 
 IP = 'localhost'
 PORT = 4450
@@ -13,7 +15,15 @@ ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
-#client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+def format_bytes(size):
+    #convert to optimal byte representation
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return f"{size:.2f} TB"  # Fallback if the size is enormous
+
 
 def hideWidget(widget):
     widget.grid_forget()
@@ -49,8 +59,7 @@ def connectGridDeactivate():
 
 
 def directGridDeactivate():
-    mylist.grid_forget()
-    directory.grid_forget()
+    mylistFiles.grid_forget()
     scrollbar.grid_forget()
 
 
@@ -63,12 +72,11 @@ def connect():
             client_CON.connect(ADDR)
             messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
             connectGridDeactivate()
-            directory.grid(row=1, column=0, ipady=10)
 
         else:
             messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
-
-def direct():
+    direct(".") #default directory
+def direct(directory):
     IP = IP_entry.get()
     PORT = PORT_entry.get()
     try:
@@ -77,25 +85,29 @@ def direct():
             ADDR = (IP, int(PORT))
             client_DIR.connect(ADDR)
             client_DIR.send(cmd.encode(FORMAT))
-
-            data = client_DIR.recv(4096)
-            contents = json.loads(data.decode('utf-8'))
-            #messagebox.showinfo("Directory Contents", "\n".join(contents))
-            hideWidget(directory)
+            client_DIR.send(directory.encode(FORMAT))
+            files = client_DIR.recv(4096)
+            contents = json.loads(files.decode('utf-8'))
             chngdirectory.grid(row=1, column=0, ipady=10)
             logout.grid(row=1, column=1, ipady=10)
 
             upload.grid(row=2, column=0, ipady=10)
             download.grid(row=2, column=1, ipady=10)
             delete.grid(row=2, column=2, ipady=10)
-            mylist.grid(rowspan=len(contents))
-            mylist.delete(0, tk.END)
+            mylistFiles.grid(row=4,rowspan=len(contents))
+            mylistFiles.delete(0, tk.END)
             for line in range(len(contents)):
-                mylist.insert(END, str(contents[line]))
+                mylistFiles.insert(END, str(contents[line]))
+
+            folders = client_DIR.recv(4096)
+            contents = json.loads(folders.decode('utf-8'))
+            mylistDIR.grid(row=4, rowspan=len(contents), column=1)
+            mylistDIR.delete(0, tk.END)
+            mylistDIR.insert(END, str("cd.."))
+            for line in range(len(contents)):
+                mylistDIR.insert(END, str(contents[line]))
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load directory: {e}")
-
-
 
 
 def logout():
@@ -106,48 +118,79 @@ def logout():
     quit()
 
 def chngdirectory():
-    print("Huwwo")
+    directory = mylistDIR.selection_get()
+    print(directory)
+
 def upload():
-    print("guhbye")
-def download():
+    filename = filedialog.askopenfilename(initialdir="/", title = "Select a file to upload", filetypes = (("Text files", "*.txt*"),("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
+def download(updateinterval=1):
     IP = IP_entry.get()
     PORT = PORT_entry.get()
     ADDR = (IP,int(PORT))
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download:
         client_Download.connect(ADDR)
-        filename = mylist.selection_get()
+        filename = mylistFiles.selection_get()
         cmd = "DOWNLOAD"
         client_Download.send(cmd.encode(FORMAT))
+        progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         try:
             client_Download.send(filename.encode(FORMAT))
-            filesize = client_Download.recv(SIZE)
+            filesize = client_Download.recv(SIZE).decode()
+            filesize = int(filesize)
 
-            if filesize > bytes(0):
-                # progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024)
+            start_time = time.time()
+            downloaded_size = 0
+
+            last_update_time = start_time
+            last_downloaded_size = 0
+
+            if filesize:
+                #progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
                 with open(filename, "wb") as file:
-                    print("doing?")
                     while True:
                         bytes_read = client_Download.recv(SIZE)
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        # progress.update(len(bytes_read))
+                        downloaded_size += len(bytes_read)
+                        current_time = time.time()
+                        if current_time - last_update_time >= updateinterval:
+                            percent_complete = (downloaded_size / filesize) * 100
+                            elapsed_time = current_time - start_time
+                            speed = (downloaded_size - last_downloaded_size) / (current_time - last_update_time) if current_time - last_update_time > 0 else 0
+                            remaining_time = (filesize - downloaded_size) / speed if speed > 0 else 0
+
+                            progress_label.config(text=(
+                                f"Progress: {format_bytes(downloaded_size)}/{format_bytes(filesize)} "
+                                f"({percent_complete:.2f}%) | "
+                                f"Speed: {format_bytes(speed)}/s | "
+                                f"Elapsed: {elapsed_time:.2f}s | "
+                                f"ETA: {remaining_time:.2f}s"
+                            ))
+                            progress_label.update()  # Force the GUI to update the label
+
+                            last_update_time = current_time
+                            last_downloaded_size = downloaded_size
+
+                        progress_label.config(text="Download successful")
+                        #progress.update(len(bytes_read)) #for testing purposes only
         except Exception as E:
             messagebox.showerror("Error", f"Failed to download file: {E}")
+            progress_label.config(text="Download unsuccessful")
 
-
-
+    progress_label.update()
     '''
     server brainstorming, send the command to identify it as a download task send some form of acknowledgement to the client and then through server side expect a reply of the file-name
     from there if possible, select the file and then send it through the socket, not sure where it would download to
     '''
+
 def delete():
     print("Buhbai")
 
 
 window = tk.Tk()
 window.title("File Sharing Cloud Server")
-window.geometry("375x500")
+window.geometry("500x500")
 
 labelServer = tk.Label(window, text="Enter address of the file server:")
 labelServer.grid(row=1, column=0, ipady=10)
@@ -184,20 +227,21 @@ PASS_entry.grid(row=8, column = 0, ipady = 10)
 connect = tk.Button(window, text="Connect", command=connect)
 connect.grid(row = 9, column =0, ipady =10)
 
-directory = tk.Button(window, text="Load Directory", command=direct)
-directory.grid(row = 1, column = 0, ipady = 10)
-hideWidget(directory)
+
 
 scrollbar = tk.Scrollbar(window, orient="vertical")
 #scrollbar.grid(rowspan=10)
 #hideWidget(scrollbar)
 
-mylist = Listbox(window, yscrollcommand=scrollbar.set)
+mylistFiles = Listbox(window, yscrollcommand=scrollbar.set)
+mylistFiles.grid()
+hideWidget(mylistFiles)
 
-mylist.grid()
-hideWidget(mylist)
+mylistDIR = Listbox(window, yscrollcommand=scrollbar.set)
+mylistDIR.grid()
+hideWidget(mylistDIR)
 
-scrollbar.config(command=mylist.yview)
+scrollbar.config(command=mylistFiles.yview)
 
 chngdirectory = tk.Button(window, text="Change Directory", command=chngdirectory)
 chngdirectory.grid(row = 1, column = 0, ipady = 10)
@@ -216,10 +260,14 @@ delete = tk.Button(window, text="Delete file", command=delete)
 delete.grid(row = 2, column = 2, ipady = 10)
 hideWidget(delete)
 
-
+progress_label = tk.Label(window, text="Progress: ")
+progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
+hideWidget(progress_label)
 
 logout = tk.Button(window, text ="Disconnect", command = logout)
 logout.grid(row=1, column=1, ipady=10)
 hideWidget(logout)
+
+
 window.mainloop()
 
