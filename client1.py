@@ -16,6 +16,8 @@ SIZE = 1024
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
 
+currentWorkingServerDirectory = "."
+
 def format_bytes(size):
     #convert to optimal byte representation
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
@@ -75,6 +77,9 @@ def connect():
 
         else:
             messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
+
+        client_CON.shutdown(socket.SHUT_RDWR)
+
     direct(".") #default directory
 def direct(directory):
     IP = IP_entry.get()
@@ -94,18 +99,30 @@ def direct(directory):
             upload.grid(row=2, column=0, ipady=10)
             download.grid(row=2, column=1, ipady=10)
             delete.grid(row=2, column=2, ipady=10)
-            mylistFiles.grid(row=4,rowspan=len(contents))
-            mylistFiles.delete(0, tk.END)
-            for line in range(len(contents)):
-                mylistFiles.insert(END, str(contents[line]))
+            if len(contents) <=0:
+                mylistFiles.grid(row=4, rowspan=10)
+                mylistFiles.delete(0, tk.END)
+            else:
+                mylistFiles.grid(row=4, rowspan=len(contents))
+                mylistFiles.delete(0, tk.END)
+                for line in range(len(contents)):
+                    mylistFiles.insert(END, str(contents[line]))
+
 
             folders = client_DIR.recv(4096)
             contents = json.loads(folders.decode('utf-8'))
-            mylistDIR.grid(row=4, rowspan=len(contents), column=1)
-            mylistDIR.delete(0, tk.END)
-            mylistDIR.insert(END, str("cd.."))
-            for line in range(len(contents)):
-                mylistDIR.insert(END, str(contents[line]))
+
+            if len(contents) <= 0:
+                mylistDIR.grid(row=4, rowspan=10, column=1)
+                mylistDIR.delete(0, tk.END)
+
+            else:
+                mylistDIR.grid(row=4, rowspan=len(contents), column=1)
+                mylistDIR.delete(0, tk.END)
+
+                for line in range(len(contents)):
+                    mylistDIR.insert(END, str(contents[line]))
+
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load directory: {e}")
 
@@ -119,7 +136,8 @@ def logout():
 
 def chngdirectory():
     directory = mylistDIR.selection_get()
-    print(directory)
+    currentWorkingServerDirectory = directory
+    direct(directory)
 
 def upload():
     filename = filedialog.askopenfilename(initialdir="/", title = "Select a file to upload", filetypes = (("Text files", "*.txt*"),("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
@@ -270,4 +288,3 @@ hideWidget(logout)
 
 
 window.mainloop()
-

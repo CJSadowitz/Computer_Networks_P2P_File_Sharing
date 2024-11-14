@@ -9,7 +9,7 @@ import socket
 import threading
 import json
 
-IP = "192.168.1.56"
+IP = "localhost"
 PORT = 53849
 ADDR = (IP, PORT)
 SIZE = 1024
@@ -32,18 +32,34 @@ def handle_client(conn, addr):
 
             conn.send(send_data.encode(FORMAT))
         elif data == "DIR":
-
             directory_path = "."  # Current directory
-            contents = os.listdir(directory_path)
-            data = json.dumps(contents)  # Convert list to JSON string
-            conn.sendall(data.encode("utf-8"))
-            conn.close()
+            chngDir = conn.recv(SIZE).decode(FORMAT)
+            if chngDir != ".":
+                directory_path = chngDir
+            try:
+                contents = os.listdir(directory_path)
+                filedata = []
+                folderdata = []
+
+                for line in contents:
+                    if os.path.isfile(line):
+                        filedata.append(line)
+                    else:
+                        folderdata.append(line)
+                filedata = json.dumps(filedata)
+                folderdata = json.dumps(folderdata)
+                conn.sendall(filedata.encode("utf-8"))
+                conn.sendall(folderdata.encode("utf-8"))
+                conn.close()
+                print(data)
+            except Exception as E:
+                conn.send(f"Invalid directory".encode(FORMAT))
+
         elif data == "DOWNLOAD":
             filename = conn.recv(SIZE).decode(FORMAT)
 
-            filesize = bytes(os.path.getsize(filename))
-            conn.send(filesize)
-
+            filesize = os.path.getsize(filename)
+            conn.send(f"{filesize}".encode(FORMAT))
             with open(filename, "rb") as f:
                 while True:
                     # read the bytes from the file
@@ -96,6 +112,7 @@ def main():
     server.bind(ADDR)  # bind the address
     server.listen()  ## start listening
     print(f"server is listening on {IP}: {PORT}")
+
     while True:
         conn, addr = server.accept()  ### accept a connection from a client
         thread = threading.Thread(target=handle_client, args=(conn, addr))  ## assigning a thread for each client
