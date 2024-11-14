@@ -9,7 +9,7 @@ import socket
 import threading
 import json
 
-IP = "localhost"
+IP = "192.168.1.56"
 PORT = 53849
 ADDR = (IP, PORT)
 SIZE = 1024
@@ -19,67 +19,65 @@ SERVER_PATH = "server"
 
 ### to handle the clients
 def handle_client(conn, addr):
-    while True:
-        data = conn.recv(SIZE).decode(FORMAT)
+    data = conn.recv(SIZE).decode(FORMAT)
+    if data == "LOGOUT":
+        conn.close()
 
-        send_data = "OK@"
-
-        if data == "LOGOUT":
-            conn.close()
-
-        elif data == "TASK":
-            send_data += "Yarg be a task.\n"
-
-            conn.send(send_data.encode(FORMAT))
-        elif data == "DIR":
-            directory_path = "."  # Current directory
-            chngDir = conn.recv(SIZE).decode(FORMAT)
-            if chngDir != ".":
-                directory_path = chngDir
-            try:
-                contents = os.listdir(directory_path)
-                filedata = []
-                folderdata = []
-
+    elif data == "DIR":
+        directory_path = "."  # Current directory
+        chngDir = conn.recv(SIZE).decode(FORMAT)
+        if chngDir != ".":
+            directory_path = chngDir
+        try:
+            contents = os.listdir(directory_path)
+            filedata = []
+            folderdata = []
+            folderdata.append("cd..")
+            cwd = os.getcwd()
+            if directory_path != ".":
+                for line in contents:
+                    if os.path.isfile(cwd + "/" + directory_path + "/" + line):
+                        filedata.append(line)
+                    else:
+                        folderdata.append(line)
+            else:
                 for line in contents:
                     if os.path.isfile(line):
                         filedata.append(line)
                     else:
                         folderdata.append(line)
-                filedata = json.dumps(filedata)
-                folderdata = json.dumps(folderdata)
-                conn.sendall(filedata.encode("utf-8"))
-                conn.sendall(folderdata.encode("utf-8"))
-                conn.close()
-                print(data)
-            except Exception as E:
-                conn.send(f"Invalid directory".encode(FORMAT))
 
-        elif data == "DOWNLOAD":
-            filename = conn.recv(SIZE).decode(FORMAT)
+            filedata = json.dumps(filedata)
+            conn.sendall(filedata.encode("utf-8"))
 
-            filesize = os.path.getsize(filename)
-            conn.send(f"{filesize}".encode(FORMAT))
-            with open(filename, "rb") as f:
-                while True:
-                    # read the bytes from the file
-                    bytes_read = f.read(SIZE)
-                    if not bytes_read:
-                        # file transmitting is done
-                        break
-                    # we use sendall to assure transimission in
-                    # busy networks
-                    conn.sendall(bytes_read)
+            folderdata = json.dumps(folderdata)
+            conn.sendall(folderdata.encode("utf-8"))
+
+            conn.close()
+        except Exception as E:
+            conn.send(f"Invalid directory".encode(FORMAT))
             conn.close()
 
+    elif data == "DOWNLOAD":
+        filename = conn.recv(SIZE).decode(FORMAT)
 
-
-        else:
-            send_data += "Unknown command\n"
-            conn.send(send_data.encode(FORMAT))
-
-    print(f"{addr} disconnected")
-    conn.close()
+        filesize = os.path.getsize(filename)
+        conn.send(f"{filesize}".encode(FORMAT))
+        with open(filename, "rb") as f:
+            while True:
+                # read the bytes from the file
+                bytes_read = f.read(SIZE)
+                if not bytes_read:
+                    # file transmitting is done
+                    break
+                # we use sendall to assure transimission in
+                # busy networks
+                conn.sendall(bytes_read)
+        conn.close()
+    else:
+        send_data = "Unknown command\n"
+        conn.send(send_data.encode(FORMAT))
+        conn.close()
 
 
 '''

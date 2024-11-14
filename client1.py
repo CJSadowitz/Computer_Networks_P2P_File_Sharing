@@ -9,6 +9,7 @@ import json
 import tqdm
 import re
 
+
 IP = 'localhost'
 PORT = 4450
 ADDR = (IP, PORT)
@@ -16,7 +17,7 @@ SIZE = 1024
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
 
-currentWorkingServerDirectory = "."
+currentWorkingServerDirectory = ""
 
 def format_bytes(size):
     #convert to optimal byte representation
@@ -78,7 +79,6 @@ def connect():
         else:
             messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
 
-        client_CON.shutdown(socket.SHUT_RDWR)
 
     direct(".") #default directory
 def direct(directory):
@@ -108,7 +108,6 @@ def direct(directory):
                 for line in range(len(contents)):
                     mylistFiles.insert(END, str(contents[line]))
 
-
             folders = client_DIR.recv(4096)
             contents = json.loads(folders.decode('utf-8'))
 
@@ -128,16 +127,29 @@ def direct(directory):
 
 
 def logout():
-    #cmd = "LOGOUT"
-    #client.send(cmd.encode(FORMAT))
-    #client.shutdown(socket.SHUT_RDWR)
-    #client.close()
     quit()
 
 def chngdirectory():
     directory = mylistDIR.selection_get()
-    currentWorkingServerDirectory = directory
-    direct(directory)
+    global currentWorkingServerDirectory
+    try:
+        if directory == "cd..":
+            if currentWorkingServerDirectory == "":
+                raise Exception("Cannot traverse up from the root directory")
+            else:
+                lastSlash = currentWorkingServerDirectory.rindex("/")
+                currentWorkingServerDirectory = currentWorkingServerDirectory[0:lastSlash]
+        else:
+            currentWorkingServerDirectory += "/" + directory
+
+        if currentWorkingServerDirectory:
+            direct(currentWorkingServerDirectory)
+
+        else:
+            direct(".")
+    except Exception as e:
+        messagebox.showerror("Error", f"Directory traversal error: {e}")
+
 
 def upload():
     filename = filedialog.askopenfilename(initialdir="/", title = "Select a file to upload", filetypes = (("Text files", "*.txt*"),("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
@@ -145,6 +157,7 @@ def download(updateinterval=1):
     IP = IP_entry.get()
     PORT = PORT_entry.get()
     ADDR = (IP,int(PORT))
+    global currentWorkingServerDirectory
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download:
         client_Download.connect(ADDR)
         filename = mylistFiles.selection_get()
@@ -153,15 +166,22 @@ def download(updateinterval=1):
         progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         try:
             client_Download.send(filename.encode(FORMAT))
-            filesize = client_Download.recv(SIZE).decode()
+            time.sleep(0.1)
+            if currentWorkingServerDirectory == "." or currentWorkingServerDirectory == "":
+                client_Download.send(".".encode(FORMAT))
+            else:
+                client_Download.send(currentWorkingServerDirectory.encode(FORMAT))
+
+            filesize = client_Download.recv(SIZE).decode(FORMAT)
             filesize = int(filesize)
+            ack = "1"
+            client_Download.send(ack.encode(FORMAT))
 
             start_time = time.time()
             downloaded_size = 0
 
             last_update_time = start_time
             last_downloaded_size = 0
-
             if filesize:
                 #progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
                 with open(filename, "wb") as file:
@@ -170,7 +190,10 @@ def download(updateinterval=1):
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        downloaded_size += len(bytes_read)
+                        time.sleep(0.1)
+
+                        #downloaded_size += len(bytes_read)
+                    '''
                         current_time = time.time()
                         if current_time - last_update_time >= updateinterval:
                             percent_complete = (downloaded_size / filesize) * 100
@@ -191,16 +214,21 @@ def download(updateinterval=1):
                             last_downloaded_size = downloaded_size
 
                         progress_label.config(text="Download successful")
-                        #progress.update(len(bytes_read)) #for testing purposes only
+                        progress.update(len(bytes_read)) #for testing purposes only
+                        '''
         except Exception as E:
             messagebox.showerror("Error", f"Failed to download file: {E}")
-            progress_label.config(text="Download unsuccessful")
+            #progress_label.config(text="Download unsuccessful")
 
-    progress_label.update()
-    '''
-    server brainstorming, send the command to identify it as a download task send some form of acknowledgement to the client and then through server side expect a reply of the file-name
-    from there if possible, select the file and then send it through the socket, not sure where it would download to
-    '''
+    #progress_label.update()
+    
+    #currently need to implement a way to keep track of the current directory from the client's side so we can try to identify where a file is based on the current 
+    #directory and download that instance of it and not one from a different folder
+    
+
+    
+    #Additional notes: need to change the default directory on the server side so the client cannot delete the server code :)
+    
 
 def delete():
     print("Buhbai")
