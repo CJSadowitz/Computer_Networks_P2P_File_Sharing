@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
+import customtkinter
 import os
 import time
 import socket
@@ -67,6 +68,9 @@ def directGridDeactivate():
 
 
 def connect():
+    global IP
+    global PORT
+    global ADDR
     IP = IP_entry.get()
     PORT = PORT_entry.get()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_CON:
@@ -94,7 +98,8 @@ def direct(directory):
             files = client_DIR.recv(4096)
             contents = json.loads(files.decode('utf-8'))
             chngdirectory.grid(row=1, column=0, ipady=10)
-            logout.grid(row=1, column=1, ipady=10)
+            makekDir.grid(row=1, column=1, ipady=10)
+            logout.grid(row=1, column=2, ipady=10)
 
             upload.grid(row=2, column=0, ipady=10)
             download.grid(row=2, column=1, ipady=10)
@@ -233,6 +238,33 @@ def download(updateinterval=1):
 def delete():
     print("Buhbai")
 
+def makeDirectory():
+    dialog = customtkinter.CTkInputDialog(text="Name the new directory", title="Make a new subdirectory")
+    newFolder = dialog.get_input()
+    forbidden_char = ['/', '\\', ':', '*', '<', '>', '\"', '|', '?']
+    if newFolder:
+        if any (char in newFolder for char in forbidden_char):
+            messagebox.showwarning("Forbidden Character", f"Directories cannot include /, \\, :, *, <, >, \", |, or ?")
+        else:
+            cmd = "MKDIR"
+            global ADDR
+            global currentWorkingServerDirectory
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_mkDir:
+                client_mkDir.connect(ADDR)
+                client_mkDir.send(cmd.encode(FORMAT))
+                client_mkDir.send(currentWorkingServerDirectory.encode(FORMAT))
+                time.sleep(0.1)
+                client_mkDir.send(newFolder.encode(FORMAT))
+                time.sleep(0.1)
+                ack = client_mkDir.recv(SIZE).decode(FORMAT)
+                if ack != '1':
+                    messagebox.showwarning("Folder Conflict", f"Folder name in use")
+            direct(currentWorkingServerDirectory)
+
+
+    else:
+        messagebox.showwarning("No Input", f"No input detected")
+
 
 window = tk.Tk()
 window.title("File Sharing Cloud Server")
@@ -310,8 +342,14 @@ progress_label = tk.Label(window, text="Progress: ")
 progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
 hideWidget(progress_label)
 
+
+makekDir = tk.Button(window, text ="New Directory", command = makeDirectory)
+makekDir.grid(row=1, column=1, ipady=10)
+hideWidget(makekDir)
+
+
 logout = tk.Button(window, text ="Disconnect", command = logout)
-logout.grid(row=1, column=1, ipady=10)
+logout.grid(row=1, column=2, ipady=10)
 hideWidget(logout)
 
 

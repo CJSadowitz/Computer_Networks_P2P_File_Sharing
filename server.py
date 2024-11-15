@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 
-# Author : Ayesha S. Dina
-
 import os
 import socket
 import threading
 import json
+import time
 
 IP = "192.168.1.56"
 PORT = 53849
@@ -15,6 +14,8 @@ ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
 SERVER_PATH = "server"
+
+os.chdir("projectTesting")
 
 
 ### to handle the clients
@@ -26,17 +27,19 @@ def handle_client(conn, addr):
     elif data == "DIR":
         directory_path = "."  # Current directory
         chngDir = conn.recv(SIZE).decode(FORMAT)
-        if chngDir != ".":
+        if chngDir != "." or chngDir != "":
             directory_path = chngDir
+        else:
+            directory_path = ""
         try:
-            contents = os.listdir(directory_path)
+            cwd = os.getcwd()
+            contents = os.listdir(cwd + directory_path)
             filedata = []
             folderdata = []
             folderdata.append("cd..")
-            cwd = os.getcwd()
             if directory_path != ".":
                 for line in contents:
-                    if os.path.isfile(cwd + "/" + directory_path + "/" + line):
+                    if os.path.isfile(cwd + directory_path + "/" + line):
                         filedata.append(line)
                     else:
                         folderdata.append(line)
@@ -46,7 +49,6 @@ def handle_client(conn, addr):
                         filedata.append(line)
                     else:
                         folderdata.append(line)
-
             filedata = json.dumps(filedata)
             conn.sendall(filedata.encode("utf-8"))
 
@@ -60,24 +62,46 @@ def handle_client(conn, addr):
 
     elif data == "DOWNLOAD":
         filename = conn.recv(SIZE).decode(FORMAT)
+        time.sleep(0.1)
+        filepath = conn.recv(SIZE).decode(FORMAT)
+        bigPath = filename
+        if filepath == ".":
+            filesize = os.path.getsize(filename)
+            conn.send(f"{filesize}".encode(FORMAT))
+        else:
+            bigPath = os.getcwd()
+            bigPath += filepath + "/" + filename
+            filesize = os.path.getsize(bigPath)
+            conn.send(f"{filesize}".encode(FORMAT))
 
-        filesize = os.path.getsize(filename)
-        conn.send(f"{filesize}".encode(FORMAT))
-        with open(filename, "rb") as f:
+        conn.recv(SIZE).decode(FORMAT)
+
+        with open(bigPath, "rb") as f:
             while True:
-                # read the bytes from the file
                 bytes_read = f.read(SIZE)
                 if not bytes_read:
-                    # file transmitting is done
                     break
-                # we use sendall to assure transimission in
-                # busy networks
                 conn.sendall(bytes_read)
+                time.sleep(0.1)
+
         conn.close()
+
+    elif data == "MKDIR":
+        client_path = conn.recv(SIZE).decode(FORMAT)
+        cwd = os.getcwd()
+        proposed_name = conn.recv(SIZE).decode(FORMAT)
+        big_path = cwd + client_path
+        contents = os.listdir(big_path)
+        if proposed_name not in contents:
+            os.mkdir(big_path + '/' + proposed_name)
+            conn.send('1'.encode(FORMAT))
+        else:
+            conn.send('0'.encode(FORMAT))
+
     else:
         send_data = "Unknown command\n"
         conn.send(send_data.encode(FORMAT))
-        conn.close()
+    conn.close()
 
 
 '''
