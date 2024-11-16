@@ -10,6 +10,7 @@ import json
 import tqdm
 import re
 
+from numpy.f2py.auxfuncs import throw_error
 
 IP = 'localhost'
 PORT = 4450
@@ -105,37 +106,43 @@ def direct(directory):
             download.grid(row=2, column=1, ipady=10)
             delete.grid(row=2, column=2, ipady=10)
             if len(contents) <=0:
-                mylistFiles.grid(row=4, rowspan=10)
+                mylistFiles.grid(row=4, rowspan=10, padx=10)
                 mylistFiles.delete(0, tk.END)
             else:
-                mylistFiles.grid(row=4, rowspan=len(contents))
+                mylistFiles.grid(row=4, rowspan=len(contents), padx=10)
                 mylistFiles.delete(0, tk.END)
                 for line in range(len(contents)):
                     mylistFiles.insert(END, str(contents[line]))
-
             folders = client_DIR.recv(4096)
-            contents = json.loads(folders.decode('utf-8'))
+            dir_contents = json.loads(folders.decode('utf-8'))
 
-            if len(contents) <= 0:
+            if len(dir_contents) <= 0:
                 mylistDIR.grid(row=4, rowspan=10, column=1)
                 mylistDIR.delete(0, tk.END)
 
             else:
-                mylistDIR.grid(row=4, rowspan=len(contents), column=1)
+                mylistDIR.grid(row=4, rowspan=len(dir_contents), column=1)
                 mylistDIR.delete(0, tk.END)
 
-                for line in range(len(contents)):
-                    mylistDIR.insert(END, str(contents[line]))
+                for line in range(len(dir_contents)):
+                    mylistDIR.insert(END, str(dir_contents[line]))
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load directory: {e}")
+    #mylistDIR.selection_clear(0, tk.END)
+    #mylistFiles.selection_clear(0, tk.END)
 
 
 def logout():
     quit()
 
 def chngdirectory():
-    directory = mylistDIR.selection_get()
+    directory = ""
+    try:
+        directory = mylistDIR.selection_get()
+    except Exception:
+        messagebox.showwarning("No directory Selected", "No directory selected to navigate to")
+        return
     global currentWorkingServerDirectory
     try:
         if directory == "cd..":
@@ -163,9 +170,29 @@ def download(updateinterval=1):
     PORT = PORT_entry.get()
     ADDR = (IP,int(PORT))
     global currentWorkingServerDirectory
+    filename = ""
+    try:
+        filename = mylistFiles.selection_get()
+        command = "FILE"
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_error:
+            client_error.connect(ADDR)
+            client_error.send(command.encode(FORMAT))
+            big_path = currentWorkingServerDirectory + '/' + filename
+            client_error.send(big_path.encode(FORMAT))
+
+            test = client_error.recv(SIZE).decode(FORMAT)
+            if test == 'False':
+                messagebox.showwarning("No File Selected", "No file selected to download")
+
+                client_error.close()
+                return
+
+    except Exception:
+        messagebox.showwarning("No File Selected", "No file selected to download")
+        return
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download:
         client_Download.connect(ADDR)
-        filename = mylistFiles.selection_get()
         cmd = "DOWNLOAD"
         client_Download.send(cmd.encode(FORMAT))
         progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
@@ -187,7 +214,7 @@ def download(updateinterval=1):
 
             last_update_time = start_time
             last_downloaded_size = 0
-            if filesize:
+            if filesize and filesize != -1:
                 #progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
                 with open(filename, "wb") as file:
                     while True:
@@ -221,6 +248,8 @@ def download(updateinterval=1):
                         progress_label.config(text="Download successful")
                         progress.update(len(bytes_read)) #for testing purposes only
                         '''
+            elif filesize == -1:
+                messagebox.showerror("Error", f"File not found")
         except Exception as E:
             messagebox.showerror("Error", f"Failed to download file: {E}")
             #progress_label.config(text="Download unsuccessful")
@@ -231,7 +260,7 @@ def download(updateinterval=1):
     #directory and download that instance of it and not one from a different folder
     
 
-    
+
     #Additional notes: need to change the default directory on the server side so the client cannot delete the server code :)
     
 
@@ -311,11 +340,12 @@ scrollbar = tk.Scrollbar(window, orient="vertical")
 #scrollbar.grid(rowspan=10)
 #hideWidget(scrollbar)
 
-mylistFiles = Listbox(window, yscrollcommand=scrollbar.set)
+mylistFiles = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
 mylistFiles.grid()
 hideWidget(mylistFiles)
 
-mylistDIR = Listbox(window, yscrollcommand=scrollbar.set)
+
+mylistDIR = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
 mylistDIR.grid()
 hideWidget(mylistDIR)
 
