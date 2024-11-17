@@ -27,6 +27,8 @@ def handle_client(conn, addr):
     elif data == "DIR":
         directory_path = "."  # Current directory
         chngDir = conn.recv(SIZE).decode(FORMAT)
+        time.sleep(0.1)
+
         if chngDir != "." or chngDir != "":
             directory_path = chngDir
         else:
@@ -51,7 +53,6 @@ def handle_client(conn, addr):
                         folderdata.append(line)
             filedata = json.dumps(filedata)
             conn.sendall(filedata.encode("utf-8"))
-
             folderdata = json.dumps(folderdata)
             conn.sendall(folderdata.encode("utf-8"))
 
@@ -66,12 +67,18 @@ def handle_client(conn, addr):
         filepath = conn.recv(SIZE).decode(FORMAT)
         bigPath = filename
         if filepath == ".":
-            filesize = os.path.getsize(filename)
+            try:
+                filesize = os.path.getsize(filename)
+            except Exception as e:
+                conn.send(f"-1".encode(FORMAT))
             conn.send(f"{filesize}".encode(FORMAT))
         else:
             bigPath = os.getcwd()
             bigPath += filepath + "/" + filename
-            filesize = os.path.getsize(bigPath)
+            try:
+                filesize = os.path.getsize(bigPath)
+            except Exception as e:
+                conn.send(f"-1".encode(FORMAT))
             conn.send(f"{filesize}".encode(FORMAT))
 
         conn.recv(SIZE).decode(FORMAT)
@@ -98,6 +105,36 @@ def handle_client(conn, addr):
         else:
             conn.send('0'.encode(FORMAT))
 
+    elif data == "FILE":
+        client_path = conn.recv(SIZE).decode(FORMAT)
+        cwd = os.getcwd()
+        time.sleep(0.1)
+        test = os.path.isfile(cwd + client_path)
+        conn.send(f"{test}".encode(FORMAT))
+
+    elif data == "DEL":
+        client_path = conn.recv(SIZE).decode(FORMAT)
+        cwd = os.getcwd()
+        time.sleep(0.1)
+        entire_path = cwd + client_path
+
+        test = os.path.isfile(entire_path)
+        if test:  # deleting file
+            try:
+                os.remove(entire_path)
+                conn.send("deleted".encode(FORMAT))
+            except PermissionError:
+                conn.send("open".encode(FORMAT))
+            except FileNotFoundError:
+                conn.send("NotFound".encode(FORMAT))
+        else:  # deleting directory
+            try:
+                os.remove(entire_path)
+                conn.send("deleted".encode(FORMAT))
+            except FileNotFoundError:
+                conn.send("NotFound".encode(FORMAT))
+            except OSError:
+                conn.send("NotEmpty".encode(FORMAT))
     else:
         send_data = "Unknown command\n"
         conn.send(send_data.encode(FORMAT))
