@@ -81,6 +81,7 @@ def connect():
             ADDR = (IP, int(PORT))
             client_CON.connect(ADDR)
             messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
+            client_CON.send("LOGOUT||0".encode(FORMAT))
             connectGridDeactivate()
 
         else:
@@ -97,9 +98,10 @@ def direct(directory):
             cmd = "DIR"
             ADDR = (IP, int(PORT))
             client_DIR.connect(ADDR)
-            client_DIR.send(cmd.encode(FORMAT))
-            client_DIR.send(directory.encode(FORMAT))
-            time.sleep(0.1)
+            combined = cmd + "||" + directory
+            #client_DIR.send(cmd.encode(FORMAT))
+            #client_DIR.send(directory.encode(FORMAT))
+            client_DIR.send(combined.encode(FORMAT))
             files = client_DIR.recv(4096)
             contents = json.loads(files.decode('utf-8'))
             chngdirectory.grid(row=1, column=0, ipady=10)
@@ -161,7 +163,6 @@ def chngdirectory():
 
         if currentWorkingServerDirectory:
             direct(currentWorkingServerDirectory)
-
         else:
             direct(".")
     except Exception as e:
@@ -179,19 +180,19 @@ def download(updateinterval=1):
     ADDR = (IP, int(PORT))
     global currentWorkingServerDirectory
     filename = ""
+    big_path = ""
     try:
         filename = mylistFiles.selection_get()
         command = "FILE"
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_error:
             client_error.connect(ADDR)
-            client_error.send(command.encode(FORMAT))
             big_path = currentWorkingServerDirectory + '/' + filename
-            client_error.send(big_path.encode(FORMAT))
+            combined = command + "||" + big_path
+            client_error.send(combined.encode(FORMAT))
 
             test = client_error.recv(SIZE).decode(FORMAT)
             if test == 'False':
                 messagebox.showwarning("No File Selected", "No file selected to download")
-
                 client_error.close()
                 return
 
@@ -202,26 +203,18 @@ def download(updateinterval=1):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download:
         client_Download.connect(ADDR)
         cmd = "DOWNLOAD"
-        client_Download.send(cmd.encode(FORMAT))
+        combined = cmd + "||" + big_path
+        client_Download.send(combined.encode(FORMAT))
         progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         try:
-            client_Download.send(filename.encode(FORMAT))
-            time.sleep(0.1)
-            if currentWorkingServerDirectory == "." or currentWorkingServerDirectory == "":
-                client_Download.send(".".encode(FORMAT))
-            else:
-                client_Download.send(currentWorkingServerDirectory.encode(FORMAT))
-
             filesize = client_Download.recv(SIZE).decode(FORMAT)
             filesize = int(filesize)
-            ack = "1"
-            client_Download.send(ack.encode(FORMAT))
 
-            start_time = time.time()
-            downloaded_size = 0
+            #start_time = time.time()
+            #downloaded_size = 0
 
-            last_update_time = start_time
-            last_downloaded_size = 0
+            #last_update_time = start_time
+            #last_downloaded_size = 0
             if filesize and filesize != -1:
                 # progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
                 with open(filename, "wb") as file:
@@ -230,8 +223,6 @@ def download(updateinterval=1):
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        time.sleep(0.1)
-
                         # downloaded_size += len(bytes_read)
                     '''
                         current_time = time.time()
@@ -278,10 +269,10 @@ def delete():
         if option:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_DEL:
                 client_DEL.connect(ADDR)
-                client_DEL.send("DEL".encode(FORMAT))
                 entire_path = currentWorkingServerDirectory + '/' + option
-                client_DEL.send(entire_path.encode(FORMAT))
-                time.sleep(0.1)
+                combined = "DEL" + "||" + entire_path
+                client_DEL.send(combined.encode(FORMAT))
+
 
                 result = client_DEL.recv(SIZE).decode(FORMAT)
                 if result == "deleted":  # success
@@ -308,11 +299,9 @@ def makeDirectory():
             global currentWorkingServerDirectory
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_mkDir:
                 client_mkDir.connect(ADDR)
-                client_mkDir.send(cmd.encode(FORMAT))
-                client_mkDir.send(currentWorkingServerDirectory.encode(FORMAT))
-                time.sleep(0.1)
+                combined = cmd + "||" + currentWorkingServerDirectory
+                client_mkDir.send(combined.encode(FORMAT))
                 client_mkDir.send(newFolder.encode(FORMAT))
-                time.sleep(0.1)
                 ack = client_mkDir.recv(SIZE).decode(FORMAT)
                 if ack != '1':
                     messagebox.showwarning("Folder Conflict", f"Folder name in use")
