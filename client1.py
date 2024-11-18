@@ -3,14 +3,10 @@ from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
 import customtkinter
-import os
-import time
 import socket
 import json
 import tqdm
-import re
 
-from numpy.f2py.auxfuncs import throw_error, options
 
 IP = 'localhost' #default IP
 PORT = 4450 #default port
