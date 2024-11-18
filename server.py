@@ -48,8 +48,7 @@ def handle_client (conn, addr):
                             filedata.append(line)
                         else:
                             folderdata.append(line)
-                print(filedata)
-                print(folderdata)
+
                 filedata = json.dumps(filedata)
                 conn.sendall(filedata.encode("utf-8")) #sends all the filenames as a json
                 folderdata = json.dumps(folderdata)

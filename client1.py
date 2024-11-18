@@ -21,15 +21,6 @@ FORMAT = "utf-8"
 currentWorkingServerDirectory = ""
 
 
-def format_bytes(size): #outdated function for statistics, probably replaced
-    # convert to optimal byte representation
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-    return f"{size:.2f} TB"  # Fallback if the size is enormous
-
-
 def hideWidget(widget): #helper function to easily hide a widget
     widget.grid_forget()
 
@@ -190,7 +181,6 @@ def download(updateinterval=1): #used for downloading a selected file from the s
         cmd = "DOWNLOAD"
         combined = cmd + "||" + big_path
         client_Download.send(combined.encode(FORMAT))
-        progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
         try:
             filesize = client_Download.recv(SIZE).decode(FORMAT)
             filesize = int(filesize)
@@ -204,8 +194,10 @@ def download(updateinterval=1): #used for downloading a selected file from the s
                         if not bytes_read:
                             break
                         file.write(bytes_read)
+                        stats = progress.format_dict
+                        print(f" Time: {stats['elapsed']} Rate: {stats['rate']}")
                         progress.update(len(bytes_read)) #for testing purposes only
-
+                messagebox.showinfo("Download successful", f"Download of {filename} complete")
 
 
             elif filesize == -1:
@@ -325,9 +317,7 @@ delete = tk.Button(window, text="Delete", command=delete)
 delete.grid(row=2, column=2, ipady=10)
 hideWidget(delete)
 
-progress_label = tk.Label(window, text="Progress: ")
-progress_label.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="we")
-hideWidget(progress_label)
+
 
 makekDir = tk.Button(window, text="New Directory", command=makeDirectory)
 makekDir.grid(row=1, column=1, ipady=10)
