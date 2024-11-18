@@ -12,17 +12,16 @@ import re
 
 from numpy.f2py.auxfuncs import throw_error, options
 
-IP = 'localhost'
-PORT = 4450
+IP = 'localhost' #default IP
+PORT = 4450 #default port
 ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
-SERVER_DATA_PATH = "server_data"
 
 currentWorkingServerDirectory = ""
 
 
-def format_bytes(size):
+def format_bytes(size): #outdated function for statistics, probably replaced
     # convert to optimal byte representation
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size < 1024:
@@ -31,11 +30,11 @@ def format_bytes(size):
     return f"{size:.2f} TB"  # Fallback if the size is enormous
 
 
-def hideWidget(widget):
+def hideWidget(widget): #helper function to easily hide a widget
     widget.grid_forget()
 
 
-def connectGridActivate():
+def connectGridActivate(): #activates all the widgets related to connecting to the file server
     labelServer.grid(row=1, column=0, ipady=10)
     IP_entry.grid(row=2, column=0, ipady=10)
     labelPort.grid(row=3, column=0, ipady=10)
@@ -47,14 +46,14 @@ def connectGridActivate():
     connect.grid(row=9, column=0, ipady=10)
 
 
-def connectGridDeactivate():
+def connectGridDeactivate(): #used to deactivate and clear the entry fields related to connecting to a file server
     connect.grid_forget()
     labelServer.grid_forget()
     IP_entry.grid_forget()
-    # IP_entry.delete(0,tk.END)
+    IP_entry.delete(0,tk.END)
     labelPort.grid_forget()
     PORT_entry.grid_forget()
-    # PORT_entry.delete(0, tk.END)
+    PORT_entry.delete(0, tk.END)
 
     labelUser.grid_forget()
     userName_entry.grid_forget()
@@ -65,12 +64,12 @@ def connectGridDeactivate():
     PASS_entry.delete(0, tk.END)
 
 
-def directGridDeactivate():
+def directGridDeactivate(): #function used to deactive the widgets related to post-connection, hasnt been updated
     mylistFiles.grid_forget()
     scrollbar.grid_forget()
 
 
-def connect():
+def connect(): #simple function used for the client to initially connect to the server, more to update client variables for socket connectivity
     global IP
     global PORT
     global ADDR
@@ -83,24 +82,17 @@ def connect():
             messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
             client_CON.send("LOGOUT||0".encode(FORMAT))
             connectGridDeactivate()
-
         else:
             messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
+    direct(".")
 
-    direct(".")  # default directory
-
-
-def direct(directory):
-    IP = IP_entry.get()
-    PORT = PORT_entry.get()
+def direct(directory): #used to obtain the directory information regarding the currentWorkingServerDirectory, separates it into files and folders
+    global ADDR
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_DIR:
             cmd = "DIR"
-            ADDR = (IP, int(PORT))
             client_DIR.connect(ADDR)
             combined = cmd + "||" + directory
-            #client_DIR.send(cmd.encode(FORMAT))
-            #client_DIR.send(directory.encode(FORMAT))
             client_DIR.send(combined.encode(FORMAT))
             files = client_DIR.recv(4096)
             contents = json.loads(files.decode('utf-8'))
@@ -132,18 +124,15 @@ def direct(directory):
 
                 for line in range(len(dir_contents)):
                     mylistDIR.insert(END, str(dir_contents[line]))
-
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load directory: {e}")
-    # mylistDIR.selection_clear(0, tk.END)
-    # mylistFiles.selection_clear(0, tk.END)
 
 
-def logout():
+def logout(): #outdated function for resetting the connection
     quit()
 
 
-def chngdirectory():
+def chngdirectory(): #used for updating the currentWorkingServerDirectory and then obtaining the information regarding it
     directory = ""
     try:
         directory = mylistDIR.selection_get()
@@ -160,7 +149,6 @@ def chngdirectory():
                 currentWorkingServerDirectory = currentWorkingServerDirectory[0:lastSlash]
         else:
             currentWorkingServerDirectory += "/" + directory
-
         if currentWorkingServerDirectory:
             direct(currentWorkingServerDirectory)
         else:
@@ -169,19 +157,17 @@ def chngdirectory():
         messagebox.showerror("Error", f"Directory traversal error: {e}")
 
 
-def upload():
+def upload(): #used for uploading files to the server, not currently functional
     filename = filedialog.askopenfilename(initialdir="/", title="Select a file to upload", filetypes=(
     ("Text files", "*.txt*"), ("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
 
 
-def download(updateinterval=1):
-    IP = IP_entry.get()
-    PORT = PORT_entry.get()
-    ADDR = (IP, int(PORT))
+def download(updateinterval=1): #used for downloading a selected file from the server
+    global ADDR
     global currentWorkingServerDirectory
     filename = ""
     big_path = ""
-    try:
+    try: #error-check to ensure the selected item is actually a file, during debugging it would sometimes allow for a directory to be selected
         filename = mylistFiles.selection_get()
         command = "FILE"
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_error:
@@ -195,12 +181,11 @@ def download(updateinterval=1):
                 messagebox.showwarning("No File Selected", "No file selected to download")
                 client_error.close()
                 return
-
     except Exception:
         messagebox.showwarning("No File Selected", "No file selected to download")
         return
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download: #initiates the download with the server
         client_Download.connect(ADDR)
         cmd = "DOWNLOAD"
         combined = cmd + "||" + big_path
@@ -210,58 +195,27 @@ def download(updateinterval=1):
             filesize = client_Download.recv(SIZE).decode(FORMAT)
             filesize = int(filesize)
 
-            #start_time = time.time()
-            #downloaded_size = 0
 
-            #last_update_time = start_time
-            #last_downloaded_size = 0
             if filesize and filesize != -1:
-                # progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
+                progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
                 with open(filename, "wb") as file:
                     while True:
                         bytes_read = client_Download.recv(SIZE)
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        # downloaded_size += len(bytes_read)
-                    '''
-                        current_time = time.time()
-                        if current_time - last_update_time >= updateinterval:
-                            percent_complete = (downloaded_size / filesize) * 100
-                            elapsed_time = current_time - start_time
-                            speed = (downloaded_size - last_downloaded_size) / (current_time - last_update_time) if current_time - last_update_time > 0 else 0
-                            remaining_time = (filesize - downloaded_size) / speed if speed > 0 else 0
-
-                            progress_label.config(text=(
-                                f"Progress: {format_bytes(downloaded_size)}/{format_bytes(filesize)} "
-                                f"({percent_complete:.2f}%) | "
-                                f"Speed: {format_bytes(speed)}/s | "
-                                f"Elapsed: {elapsed_time:.2f}s | "
-                                f"ETA: {remaining_time:.2f}s"
-                            ))
-                            progress_label.update()  # Force the GUI to update the label
-
-                            last_update_time = current_time
-                            last_downloaded_size = downloaded_size
-
-                        progress_label.config(text="Download successful")
                         progress.update(len(bytes_read)) #for testing purposes only
-                        '''
+
+
+
             elif filesize == -1:
                 messagebox.showerror("Error", f"File not found")
         except Exception as E:
             messagebox.showerror("Error", f"Failed to download file: {E}")
-            # progress_label.config(text="Download unsuccessful")
-
-    # progress_label.update()
-
-    # currently need to implement a way to keep track of the current directory from the client's side so we can try to identify where a file is based on the current
-    # directory and download that instance of it and not one from a different folder
-
-    # Additional notes: need to change the default directory on the server side so the client cannot delete the server code :)
 
 
-def delete():
+
+def delete(): #used for deleting a selected item (file or directory from the server), sends information if the command cannot be properly executed
     selected = [mylistFiles.selection_get()]
     global ADDR
     global currentWorkingServerDirectory
@@ -286,7 +240,7 @@ def delete():
     direct(currentWorkingServerDirectory)
 
 
-def makeDirectory():
+def makeDirectory(): #used for creating new directories on the server, has checks on the client side to prevent certain characters from being passed to the server
     dialog = customtkinter.CTkInputDialog(text="Name the new directory", title="Make a new subdirectory")
     newFolder = dialog.get_input()
     forbidden_char = ['/', '\\', ':', '*', '<', '>', '\"', '|', '?']
@@ -342,7 +296,7 @@ connect = tk.Button(window, text="Connect", command=connect)
 connect.grid(row=9, column=0, ipady=10)
 
 scrollbar = tk.Scrollbar(window, orient="vertical")
-# scrollbar.grid(rowspan=10)
+# scrollbar.grid(rowspan=10) #tbh idk what this even did
 # hideWidget(scrollbar)
 
 mylistFiles = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
