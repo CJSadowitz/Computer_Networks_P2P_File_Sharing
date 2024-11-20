@@ -6,7 +6,7 @@ import customtkinter
 import socket
 import json
 import tqdm
-
+import time
 
 IP = 'localhost' #default IP
 PORT = 4450 #default port
@@ -82,14 +82,27 @@ def direct(directory): #used to obtain the directory information regarding the c
             combined = cmd + "||" + directory
             client_DIR.send(combined.encode(FORMAT))
             files = client_DIR.recv(4096)
-            contents = json.loads(files.decode('utf-8'))
+            files = files.decode('utf-8')
+            if files[0] == '[' and files[1] == ']':
+                files = files[2:]
+                # print ("Fixed Files", files)
+            if files != "":
+                try:
+                    contents = json.loads(files) # this expects what
+                except Exception as e:
+                    print ("Bad Format:", e) # Well, this is our problem not a user error
+                    print (files)
+                    contents = json.loads('["cd.."]') # lets me traverse backwards
+            else:
+                contents = ""
+
             chngdirectory.grid(row=1, column=0, ipady=10)
             makekDir.grid(row=1, column=1, ipady=10)
             logout.grid(row=1, column=2, ipady=10)
-
             upload.grid(row=2, column=0, ipady=10)
             download.grid(row=2, column=1, ipady=10)
             delete.grid(row=2, column=2, ipady=10)
+
             if len(contents) <= 0:
                 mylistFiles.grid(row=4, rowspan=10, padx=10)
                 mylistFiles.delete(0, tk.END)
@@ -98,13 +111,18 @@ def direct(directory): #used to obtain the directory information regarding the c
                 mylistFiles.delete(0, tk.END)
                 for line in range(len(contents)):
                     mylistFiles.insert(END, str(contents[line]))
+            # This can recieve nothing because the server is sending too fast and cause errors
             folders = client_DIR.recv(4096)
-            dir_contents = json.loads(folders.decode('utf-8'))
+            folders = folders.decode('utf-8')
+
+            if folders == "":
+                 dir_contents = ""
+            else:
+                dir_contents = json.loads(folders)
 
             if len(dir_contents) <= 0:
                 mylistDIR.grid(row=4, rowspan=10, column=1)
                 mylistDIR.delete(0, tk.END)
-
             else:
                 mylistDIR.grid(row=4, rowspan=len(dir_contents), column=1)
                 mylistDIR.delete(0, tk.END)
@@ -112,8 +130,9 @@ def direct(directory): #used to obtain the directory information regarding the c
                 for line in range(len(dir_contents)):
                     mylistDIR.insert(END, str(dir_contents[line]))
     except Exception as e:
+        print ("Direct Error:", e) # Yay
         messagebox.showerror("Error", f"Failed to load directory: {e}")
-
+    # Error Occurs Here :/
 
 def logout(): #outdated function for resetting the connection
     quit()
@@ -123,8 +142,9 @@ def chngdirectory(): #used for updating the currentWorkingServerDirectory and th
     directory = ""
     try:
         directory = mylistDIR.selection_get()
-    except Exception:
+    except Exception as e:
         messagebox.showwarning("No directory Selected", "No directory selected to navigate to")
+        print (e)
         return
     global currentWorkingServerDirectory
     try:
@@ -141,6 +161,7 @@ def chngdirectory(): #used for updating the currentWorkingServerDirectory and th
         else:
             direct(".")
     except Exception as e:
+        print ("Change Directory error", e)
         messagebox.showerror("Error", f"Directory traversal error: {e}")
 
 
@@ -243,7 +264,10 @@ def makeDirectory(): #used for creating new directories on the server, has check
                 client_mkDir.connect(ADDR)
                 combined = cmd + "||" + currentWorkingServerDirectory
                 client_mkDir.send(combined.encode(FORMAT))
-                client_mkDir.send(newFolder.encode(FORMAT))
+
+                time.sleep(0.1) # Change this for an ACK
+
+                client_mkDir.send(newFolder.encode(FORMAT)) # New Directory Name
                 ack = client_mkDir.recv(SIZE).decode(FORMAT)
                 if ack != '1':
                     messagebox.showwarning("Folder Conflict", f"Folder name in use")
@@ -251,76 +275,76 @@ def makeDirectory(): #used for creating new directories on the server, has check
     else:
         messagebox.showwarning("No Input", f"No input detected")
 
+if __name__ == "__main__":
+    window = tk.Tk()
+    window.title("File Sharing Cloud Server")
+    window.geometry("500x500")
 
-window = tk.Tk()
-window.title("File Sharing Cloud Server")
-window.geometry("500x500")
+    labelServer = tk.Label(window, text="Enter address of the file server:")
+    labelServer.grid(row=1, column=0, ipady=10)
 
-labelServer = tk.Label(window, text="Enter address of the file server:")
-labelServer.grid(row=1, column=0, ipady=10)
+    IP_entry = tk.Entry(window)
+    IP_entry.grid(row=2, column=0, ipady=10)
 
-IP_entry = tk.Entry(window)
-IP_entry.grid(row=2, column=0, ipady=10)
+    labelPort = tk.Label(window, text="Enter port of the file server:")
+    labelPort.grid(row=3, column=0, ipady=10)
 
-labelPort = tk.Label(window, text="Enter port of the file server:")
-labelPort.grid(row=3, column=0, ipady=10)
+    PORT_entry = tk.Entry(window)
+    PORT_entry.grid(row=4, column=0, ipady=10)
 
-PORT_entry = tk.Entry(window)
-PORT_entry.grid(row=4, column=0, ipady=10)
+    labelUser = tk.Label(window, text="Enter your username for authentication:")
+    labelUser.grid(row=5, column=0, ipady=10)
 
-labelUser = tk.Label(window, text="Enter your username for authentication:")
-labelUser.grid(row=5, column=0, ipady=10)
+    userName_entry = tk.Entry(window)
+    userName_entry.grid(row=6, column=0, ipady=10)
 
-userName_entry = tk.Entry(window)
-userName_entry.grid(row=6, column=0, ipady=10)
+    labelPass = tk.Label(window, text="Enter your password for the server:")
+    labelPass.grid(row=7, column=0, ipady=10)
 
-labelPass = tk.Label(window, text="Enter your password for the server:")
-labelPass.grid(row=7, column=0, ipady=10)
+    PASS_entry = tk.Entry(window, show="*")
+    PASS_entry.grid(row=8, column=0, ipady=10)
 
-PASS_entry = tk.Entry(window, show="*")
-PASS_entry.grid(row=8, column=0, ipady=10)
+    connect = tk.Button(window, text="Connect", command=connect)
+    connect.grid(row=9, column=0, ipady=10)
 
-connect = tk.Button(window, text="Connect", command=connect)
-connect.grid(row=9, column=0, ipady=10)
+    scrollbar = tk.Scrollbar(window, orient="vertical")
+    # scrollbar.grid(rowspan=10) #tbh idk what this even did
+    # hideWidget(scrollbar)
 
-scrollbar = tk.Scrollbar(window, orient="vertical")
-# scrollbar.grid(rowspan=10) #tbh idk what this even did
-# hideWidget(scrollbar)
+    mylistFiles = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
+    mylistFiles.grid()
+    hideWidget(mylistFiles)
 
-mylistFiles = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
-mylistFiles.grid()
-hideWidget(mylistFiles)
+    mylistDIR = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
+    mylistDIR.grid()
+    hideWidget(mylistDIR)
 
-mylistDIR = Listbox(window, yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
-mylistDIR.grid()
-hideWidget(mylistDIR)
+    scrollbar.config(command=mylistFiles.yview)
 
-scrollbar.config(command=mylistFiles.yview)
+    chngdirectory = tk.Button(window, text="Change Directory", command=chngdirectory)
+    chngdirectory.grid(row=1, column=0, ipady=10)
+    hideWidget(chngdirectory)
 
-chngdirectory = tk.Button(window, text="Change Directory", command=chngdirectory)
-chngdirectory.grid(row=1, column=0, ipady=10)
-hideWidget(chngdirectory)
+    upload = tk.Button(window, text="Upload file", command=upload)
+    upload.grid(row=2, column=0, ipady=10)
+    hideWidget(upload)
 
-upload = tk.Button(window, text="Upload file", command=upload)
-upload.grid(row=2, column=0, ipady=10)
-hideWidget(upload)
+    download = tk.Button(window, text="Download file", command=download)
+    download.grid(row=2, column=1, ipady=10)
+    hideWidget(download)
 
-download = tk.Button(window, text="Download file", command=download)
-download.grid(row=2, column=1, ipady=10)
-hideWidget(download)
-
-delete = tk.Button(window, text="Delete", command=delete)
-delete.grid(row=2, column=2, ipady=10)
-hideWidget(delete)
+    delete = tk.Button(window, text="Delete", command=delete)
+    delete.grid(row=2, column=2, ipady=10)
+    hideWidget(delete)
 
 
 
-makekDir = tk.Button(window, text="New Directory", command=makeDirectory)
-makekDir.grid(row=1, column=1, ipady=10)
-hideWidget(makekDir)
+    makekDir = tk.Button(window, text="New Directory", command=makeDirectory)
+    makekDir.grid(row=1, column=1, ipady=10)
+    hideWidget(makekDir)
 
-logout = tk.Button(window, text="Disconnect", command=logout)
-logout.grid(row=1, column=2, ipady=10)
-hideWidget(logout)
+    logout = tk.Button(window, text="Disconnect", command=logout)
+    logout.grid(row=1, column=2, ipady=10)
+    hideWidget(logout)
 
-window.mainloop()
+    window.mainloop()
