@@ -52,8 +52,8 @@ def handle_client (conn, addr):
                 filedata = json.dumps(filedata)
                 conn.sendall(filedata.encode("utf-8")) #sends all the filenames as a json
 
+                ack = conn.recv(4096)
                 # Use an ACK to confirm that the first one was recieved to remove the time.sleep()
-                time.sleep(0.1)
 
                 folderdata = json.dumps(folderdata)
                 conn.sendall(folderdata.encode("utf-8")) #sends all the folders as a json

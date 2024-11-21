@@ -85,21 +85,15 @@ def direct(directory): #used to obtain the directory information regarding the c
             client_DIR.connect(ADDR)
             combined = cmd + "||" + directory
 
-            ################################################
             files, init_time = response_time(client_DIR, combined.encode(FORMAT))
-            ################################################
-            # client_DIR.send(combined.encode(FORMAT))
-            # time_0 = time.time() # Only Request from server
-            # files = client_DIR.recv(4096)
-            # time_1 = time.time()
-            # logger.info("DIR1:RE: " + str(time_1 - time_0))
-            ################################################
+            ack = 0
 
             files = files.decode('utf-8')
             if files[0] == '[' and files[1] == ']':
                 files = files[2:]
             if files != "":
                 try:
+                    ack = 1
                     contents = json.loads(files)
                 except Exception as e:
                     print ("Bad Format:", e)
@@ -124,12 +118,7 @@ def direct(directory): #used to obtain the directory information regarding the c
                 for line in range(len(contents)):
                     mylistFiles.insert(END, str(contents[line]))
 
-            #########################################################################
-            # Send an ACK to server before this
-            folders = client_DIR.recv(4096)
-            # time_2 = time.time()
-            # logger.info("DIR2:RE: " + str(time_2 - time_0)) # Only one send two recv
-            #########################################################################
+            folders, init_time = response_time(client_DIR, str(ack).encode(FORMAT))
 
             folders = folders.decode('utf-8')
 
@@ -153,7 +142,6 @@ def direct(directory): #used to obtain the directory information regarding the c
 
 def logout(): #outdated function for resetting the connection
     quit()
-
 
 def chngdirectory(): #used for updating the currentWorkingServerDirectory and then obtaining the information regarding it
     directory = "" # Check here if the 'directory' that I am changing to is a file or a directory
@@ -215,57 +203,25 @@ def download(updateinterval=1): #used for downloading a selected file from the s
         cmd = "DOWNLOAD"
         combined = cmd + "||" + big_path
 
-        ################################################
-        # client_Download.send(combined.encode(FORMAT))
-        # time_0 = time.time() # Sent Command to recv file
-        ################################################
-
         try:
-            #######################################################
             filesize, init_time = response_time(client_Download, combined.encode(FORMAT))
-            # filesize = client_Download.recv(SIZE).decode(FORMAT)
-            # time_size = time.time()
-            # logger.info("DOWNLOAD:RE: " + str(time_size - time_0))
-            #######################################################
             filesize = int(filesize)
 
             if filesize and filesize != -1:
-                # progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
-                # download_times = []
                 with open(filename, "wb") as file:
                     while True:
-
-                        #########################################################
                         bytes_read = download_time(client_Download, init_time)
-                        # bytes_read = client_Download.recv(SIZE)
-                        # time_1 = time.time()
-                        #download_times.append(time_1) # Every Instance of Packet
-                        # logger.info("DOWNLOAD: " + str(time_1 - time_0))
-                        #########################################################
 
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        # stats = progress.format_dict
-                        # print(f" Time: {stats['elapsed']} Rate: {stats['rate']}")
-                        # progress.update(len(bytes_read)) #for testing purposes only
-
-                #####################################################################
-                # time_2 = time.time() # File Transfer Time I can just sum the entries to get the file transfer time
-                # logger.info("DOWNLOAD SIZE: " + str(filesize))
-                # logger.info("DOWNLOAD FINISHED: " + str(time_2 - download_times[0]))
-                # logger.info("DOWNLOAD NUM PACKETS: " + str(len(download_times)))
-                #####################################################################
 
                 messagebox.showinfo("Download successful", f"Download of {filename} complete")
-
 
             elif filesize == -1:
                 messagebox.showerror("Error", f"File not found")
         except Exception as E:
             messagebox.showerror("Error", f"Failed to download file: {E}")
-
-
 
 def delete(): #used for deleting a selected item (file or directory from the server), sends information if the command cannot be properly executed
     selected = [mylistFiles.selection_get()]
@@ -278,14 +234,7 @@ def delete(): #used for deleting a selected item (file or directory from the ser
                 entire_path = currentWorkingServerDirectory + '/' + option
                 combined = "DEL" + "||" + entire_path
 
-                ##################################################
                 result = response_time(client_DEL, combined.encode(FORMAT))
-                # client_DEL.send(combined.encode(FORMAT))
-                # time_0 = time.time() # Init send command
-                # result = client_DEL.recv(SIZE).decode(FORMAT)
-                # time_1 = time.time() # Response
-                # logger.info("DELETE:RE: " + str(time_1 - time_0))
-                ##################################################
 
                 if result == "deleted":  # success
                     messagebox.showinfo("Item deleted", f"The item {option} has been deleted")
@@ -313,23 +262,8 @@ def makeDirectory(): #used for creating new directories on the server, has check
                 client_mkDir.connect(ADDR)
                 combined = cmd + "||" + currentWorkingServerDirectory
 
-                ##################################################
                 cmd_ack = response_time(client_mkDir, combined.encode(FORMAT))
-                # client_mkDir.send(combined.encode(FORMAT))
-                # time_0 = time.time()
-                # cmd_ack = client_mkDir.recv(SIZE).decode(FORMAT)
-                # time_1 = time.time()
-                # logger.info("MKDIR1:RE: " + str(time_1 - time_0))
-                ##################################################
-
-                #################################################################
                 ack, init_time = response_time(client_mkDir, newFolder.encode(FORMAT))
-                # client_mkDir.send(newFolder.encode(FORMAT)) # New Directory Name
-                # time_2 = time.time()
-                # ack = client_mkDir.recv(SIZE).decode(FORMAT)
-                # time_3 = time.time()
-                # logger.info("MKDIR2:RE: " + str(time_3 - time_2))
-                #################################################################
 
                 if ack.decode(FORMAT) != '1':
                     messagebox.showwarning("Folder Conflict", f"Folder name in use")
