@@ -85,6 +85,7 @@ def handle_client (conn, addr):
             #creates a new directory if the directory name is not already in use
             cwd = os.getcwd()
 
+            conn.send('1'.encode(FORMAT)) # Send ACK for init CMD
             proposed_name = conn.recv(SIZE).decode(FORMAT) # Make sure that an ACK is sent before this
 
             big_path = cwd + data

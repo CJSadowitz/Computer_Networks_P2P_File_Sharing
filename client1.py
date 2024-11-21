@@ -7,6 +7,10 @@ import socket
 import json
 import tqdm
 import time
+import logging
+from network_log import response_time, download_time, upload_time
+
+logger = logging.getLogger(__name__)
 
 IP = 'localhost' #default IP
 PORT = 4450 #default port
@@ -80,17 +84,25 @@ def direct(directory): #used to obtain the directory information regarding the c
             cmd = "DIR"
             client_DIR.connect(ADDR)
             combined = cmd + "||" + directory
-            client_DIR.send(combined.encode(FORMAT))
-            files = client_DIR.recv(4096)
+
+            ################################################
+            files, init_time = response_time(client_DIR, combined.encode(FORMAT))
+            ################################################
+            # client_DIR.send(combined.encode(FORMAT))
+            # time_0 = time.time() # Only Request from server
+            # files = client_DIR.recv(4096)
+            # time_1 = time.time()
+            # logger.info("DIR1:RE: " + str(time_1 - time_0))
+            ################################################
+
             files = files.decode('utf-8')
             if files[0] == '[' and files[1] == ']':
                 files = files[2:]
-                # print ("Fixed Files", files)
             if files != "":
                 try:
-                    contents = json.loads(files) # this expects what
+                    contents = json.loads(files)
                 except Exception as e:
-                    print ("Bad Format:", e) # Well, this is our problem not a user error
+                    print ("Bad Format:", e)
                     print (files)
                     contents = json.loads('["cd.."]') # lets me traverse backwards
             else:
@@ -111,8 +123,14 @@ def direct(directory): #used to obtain the directory information regarding the c
                 mylistFiles.delete(0, tk.END)
                 for line in range(len(contents)):
                     mylistFiles.insert(END, str(contents[line]))
-            # This can recieve nothing because the server is sending too fast and cause errors
+
+            #########################################################################
+            # Send an ACK to server before this
             folders = client_DIR.recv(4096)
+            # time_2 = time.time()
+            # logger.info("DIR2:RE: " + str(time_2 - time_0)) # Only one send two recv
+            #########################################################################
+
             folders = folders.decode('utf-8')
 
             if folders == "":
@@ -132,14 +150,13 @@ def direct(directory): #used to obtain the directory information regarding the c
     except Exception as e:
         print ("Direct Error:", e) # Yay
         messagebox.showerror("Error", f"Failed to load directory: {e}")
-    # Error Occurs Here :/
 
 def logout(): #outdated function for resetting the connection
     quit()
 
 
 def chngdirectory(): #used for updating the currentWorkingServerDirectory and then obtaining the information regarding it
-    directory = ""
+    directory = "" # Check here if the 'directory' that I am changing to is a file or a directory
     try:
         directory = mylistDIR.selection_get()
     except Exception as e:
@@ -197,23 +214,49 @@ def download(updateinterval=1): #used for downloading a selected file from the s
         client_Download.connect(ADDR)
         cmd = "DOWNLOAD"
         combined = cmd + "||" + big_path
-        client_Download.send(combined.encode(FORMAT))
+
+        ################################################
+        # client_Download.send(combined.encode(FORMAT))
+        # time_0 = time.time() # Sent Command to recv file
+        ################################################
+
         try:
-            filesize = client_Download.recv(SIZE).decode(FORMAT)
+            #######################################################
+            filesize, init_time = response_time(client_Download, combined.encode(FORMAT))
+            # filesize = client_Download.recv(SIZE).decode(FORMAT)
+            # time_size = time.time()
+            # logger.info("DOWNLOAD:RE: " + str(time_size - time_0))
+            #######################################################
             filesize = int(filesize)
 
-
             if filesize and filesize != -1:
-                progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
+                # progress = tqdm.tqdm(range(filesize), f"Downloading {filename}", unit="B", unit_scale=True, unit_divisor=1024) #for testing purposes only
+                # download_times = []
                 with open(filename, "wb") as file:
                     while True:
-                        bytes_read = client_Download.recv(SIZE)
+
+                        #########################################################
+                        bytes_read = download_time(client_Download, init_time)
+                        # bytes_read = client_Download.recv(SIZE)
+                        # time_1 = time.time()
+                        #download_times.append(time_1) # Every Instance of Packet
+                        # logger.info("DOWNLOAD: " + str(time_1 - time_0))
+                        #########################################################
+
                         if not bytes_read:
                             break
                         file.write(bytes_read)
-                        stats = progress.format_dict
-                        print(f" Time: {stats['elapsed']} Rate: {stats['rate']}")
-                        progress.update(len(bytes_read)) #for testing purposes only
+                        # stats = progress.format_dict
+                        # print(f" Time: {stats['elapsed']} Rate: {stats['rate']}")
+                        # progress.update(len(bytes_read)) #for testing purposes only
+
+                #####################################################################
+                # time_2 = time.time() # File Transfer Time I can just sum the entries to get the file transfer time
+                # logger.info("DOWNLOAD SIZE: " + str(filesize))
+                # logger.info("DOWNLOAD FINISHED: " + str(time_2 - download_times[0]))
+                # logger.info("DOWNLOAD NUM PACKETS: " + str(len(download_times)))
+                #####################################################################
+
                 messagebox.showinfo("Download successful", f"Download of {filename} complete")
 
 
@@ -234,10 +277,16 @@ def delete(): #used for deleting a selected item (file or directory from the ser
                 client_DEL.connect(ADDR)
                 entire_path = currentWorkingServerDirectory + '/' + option
                 combined = "DEL" + "||" + entire_path
-                client_DEL.send(combined.encode(FORMAT))
 
+                ##################################################
+                result = response_time(client_DEL, combined.encode(FORMAT))
+                # client_DEL.send(combined.encode(FORMAT))
+                # time_0 = time.time() # Init send command
+                # result = client_DEL.recv(SIZE).decode(FORMAT)
+                # time_1 = time.time() # Response
+                # logger.info("DELETE:RE: " + str(time_1 - time_0))
+                ##################################################
 
-                result = client_DEL.recv(SIZE).decode(FORMAT)
                 if result == "deleted":  # success
                     messagebox.showinfo("Item deleted", f"The item {option} has been deleted")
                 elif result == "open":  # selected item is open, raise a warning to try again later
@@ -263,19 +312,33 @@ def makeDirectory(): #used for creating new directories on the server, has check
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_mkDir:
                 client_mkDir.connect(ADDR)
                 combined = cmd + "||" + currentWorkingServerDirectory
-                client_mkDir.send(combined.encode(FORMAT))
 
-                time.sleep(0.1) # Change this for an ACK
+                ##################################################
+                cmd_ack = response_time(client_mkDir, combined.encode(FORMAT))
+                # client_mkDir.send(combined.encode(FORMAT))
+                # time_0 = time.time()
+                # cmd_ack = client_mkDir.recv(SIZE).decode(FORMAT)
+                # time_1 = time.time()
+                # logger.info("MKDIR1:RE: " + str(time_1 - time_0))
+                ##################################################
 
-                client_mkDir.send(newFolder.encode(FORMAT)) # New Directory Name
-                ack = client_mkDir.recv(SIZE).decode(FORMAT)
-                if ack != '1':
+                #################################################################
+                ack, init_time = response_time(client_mkDir, newFolder.encode(FORMAT))
+                # client_mkDir.send(newFolder.encode(FORMAT)) # New Directory Name
+                # time_2 = time.time()
+                # ack = client_mkDir.recv(SIZE).decode(FORMAT)
+                # time_3 = time.time()
+                # logger.info("MKDIR2:RE: " + str(time_3 - time_2))
+                #################################################################
+
+                if ack.decode(FORMAT) != '1':
                     messagebox.showwarning("Folder Conflict", f"Folder name in use")
             direct(currentWorkingServerDirectory)
     else:
         messagebox.showwarning("No Input", f"No input detected")
 
 if __name__ == "__main__":
+    logging.basicConfig(filename='response_times.log', level=logging.INFO)
     window = tk.Tk()
     window.title("File Sharing Cloud Server")
     window.geometry("500x500")
@@ -336,8 +399,6 @@ if __name__ == "__main__":
     delete = tk.Button(window, text="Delete", command=delete)
     delete.grid(row=2, column=2, ipady=10)
     hideWidget(delete)
-
-
 
     makekDir = tk.Button(window, text="New Directory", command=makeDirectory)
     makekDir.grid(row=1, column=1, ipady=10)
