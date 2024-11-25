@@ -1,6 +1,7 @@
 import logging
 import time
 import os
+from matplotlib import pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,26 @@ def sent_packets(file):
 
 # Response times since the start of the clients connection
 def response_times(file):
-	pass
+	# Plot response time to time since connected to server
+	start_time = None
+	response_times = []
+	occurance_times = []
+	with open(file, "r") as f:
+		for line in f:
+			all_info = line.split(' ')
+			log_info = all_info[0].split(':')
+			try:
+				log_info[1]
+			except Exception as e:
+				print (log_info)
+			if log_info[1] == '__main__':
+				start_time = float(all_info[1])
+			if log_info[2] == "RESP":
+				response_times.append(float(all_info[1]))
+				occurance_times.append(float(all_info[2]) - start_time)
+
+	plt.scatter(occurance_times, response_times)
+	plt.show()
 
 # All times are in one file, we split for individual analysis
 def split_log(file):
@@ -85,3 +105,7 @@ def write_logs(logs_list, directory):
 if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
+
+	response_times("separated_logs/log_0.txt")
+	response_times("separated_logs/log_1.txt")
+	response_times("separated_logs/log_2.txt")
