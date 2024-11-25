@@ -208,9 +208,10 @@ def download(updateinterval=1): #used for downloading a selected file from the s
 
             if filesize and filesize != -1:
                 with open(filename, "wb") as file:
+                    last_time = init_time
                     while True:
-                        bytes_read = download_time(client_Download, init_time, filesize)
-
+                        bytes_read, prev_time = download_time(client_Download, last_time, filesize)
+                        last_time = prev_time
                         if not bytes_read:
                             break
                         file.write(bytes_read)

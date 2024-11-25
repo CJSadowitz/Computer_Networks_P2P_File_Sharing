@@ -18,7 +18,7 @@ def download_time(conn, init_time, file_size):
 	file_part = conn.recv(4096)
 	time_1 = time.time()
 	logger.info("DOWN: " + str(round(time_1 - init_time, 6)) + ' ' + str(time.time())  + ' ' + str(file_size))
-	return file_part
+	return file_part, time_1
 
 def upload_time(conn, encoded_data, init_time):
 	conn.send(encoded_data)
@@ -42,11 +42,18 @@ def received_packets(file):
 			if log_info[1] == "__main__":
 				start_time = float(all_info[1])
 			if log_info[2] == "DOWN":
-				packet_size = all_info[3]
-				occurance_time.append(float(all_info[2]) - start_time)
+				packet_size = float(all_info[3])
+				# occurance_time.append(float(all_info[2]) - start_time)
+				occurance_time.append(float(all_info[2]))
 				packet_times.append(float(all_info[1]))
 
 	plt.scatter(occurance_time, packet_times)
+
+	average_time = sum(packet_times) / len(packet_times)
+	print ("AVG", average_time, "NUM", len(packet_times), "LEN", packet_size)
+	print ("Bps", sum(packet_times) / average_time)
+	print ("MBps", (sum(packet_times) / average_time) / (1 * 10**6))
+
 	plt.show()
 
 # Upload packet times
@@ -57,6 +64,7 @@ def sent_packets(file):
 def response_times(file):
 	# Plot response time to time since connected to server
 	start_time = None
+	length = None
 	response_times = []
 	occurance_times = []
 	with open(file, "r") as f:
@@ -67,11 +75,16 @@ def response_times(file):
 				start_time = float(all_info[1])
 			if log_info[2] == "RESP":
 				response_times.append(float(all_info[1]))
-				occurance_times.append(float(all_info[2]) - start_time)
+				# occurance_times.append(float(all_info[2]) - start_time)
+				occurance_times.append(float(all_info[2]))
 
 	plt.scatter(occurance_times, response_times)
 	plt.xlabel("Time since client connected (s)")
 	plt.ylabel("Response Time (s)")
+
+	average_time = sum(response_times) / len(response_times)
+	print ("RESPONSE: AVG", average_time)
+
 	plt.show()
 
 # All times are in one file, we split for individual analysis
@@ -103,7 +116,7 @@ def split_log(file):
 	try:
 		os.mkdir(directory)
 	except Exception as e:
-		print (e)
+		pass
 
 	write_logs(logs, directory)
 
@@ -120,5 +133,5 @@ if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
 
-	response_times("separated_logs/log_0.txt")
-	received_packets("separated_logs/log_0.txt")
+	response_times("separated_logs/log_2.txt")
+	received_packets("separated_logs/log_2.txt")
