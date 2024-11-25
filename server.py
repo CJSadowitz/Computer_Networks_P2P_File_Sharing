@@ -10,12 +10,6 @@ ADDR = (IP,PORT)
 SIZE = 1024
 FORMAT = "utf-8"
 
-# try:
-# 	os.chdir("projectTesting")
-# except Exception as e:
-#	os.mkdir("projectTesting")
-#	os.chdir("projectTesting")
-
 def handle_client (conn, addr):
     # server receives initial data from the client in the format COMMAND||DATA
         received =  conn.recv(SIZE).decode(FORMAT)
@@ -26,7 +20,6 @@ def handle_client (conn, addr):
             conn.close()
         elif cmd == "DIR": #client wants directory information
             directory_path = ""  # Current directory
-            # time.sleep(0.1)
             if data == '.' or data == '': # Fixed Logic
                 directory_path = ""
             else:
@@ -53,7 +46,6 @@ def handle_client (conn, addr):
                 conn.sendall(filedata.encode("utf-8")) #sends all the filenames as a json
 
                 ack = conn.recv(4096)
-                # Use an ACK to confirm that the first one was recieved to remove the time.sleep()
 
                 folderdata = json.dumps(folderdata)
                 conn.sendall(folderdata.encode("utf-8")) #sends all the folders as a json
@@ -142,7 +134,6 @@ def main():
         print(f"New connection on {addr}")
         thread = threading.Thread(target = handle_client, args = (conn, addr)) ## assigning a thread for each client
         thread.start()
-
 
 if __name__ == "__main__":
     try:

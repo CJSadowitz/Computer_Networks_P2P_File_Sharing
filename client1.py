@@ -24,7 +24,6 @@ currentWorkingServerDirectory = ""
 def hideWidget(widget): #helper function to easily hide a widget
     widget.grid_forget()
 
-
 def connectGridActivate(): #activates all the widgets related to connecting to the file server
     labelServer.grid(row=1, column=0, ipady=10)
     IP_entry.grid(row=2, column=0, ipady=10)
@@ -210,7 +209,7 @@ def download(updateinterval=1): #used for downloading a selected file from the s
             if filesize and filesize != -1:
                 with open(filename, "wb") as file:
                     while True:
-                        bytes_read = download_time(client_Download, init_time)
+                        bytes_read = download_time(client_Download, init_time, filesize)
 
                         if not bytes_read:
                             break
@@ -272,6 +271,7 @@ def makeDirectory(): #used for creating new directories on the server, has check
         messagebox.showwarning("No Input", f"No input detected")
 
 if __name__ == "__main__":
+
     logging.basicConfig(filename='response_times.log', level=logging.INFO)
     window = tk.Tk()
     window.title("File Sharing Cloud Server")
@@ -341,5 +341,7 @@ if __name__ == "__main__":
     logout = tk.Button(window, text="Disconnect", command=logout)
     logout.grid(row=1, column=2, ipady=10)
     hideWidget(logout)
+
+    logger.info("Client_Connected: " + str(time.time()))
 
     window.mainloop()
