@@ -17,7 +17,7 @@ def response_time(conn, encoded_cmd):
 def download_time(conn, init_time, file_size):
 	file_part = conn.recv(4096)
 	time_1 = time.time()
-	logger.info("DOWN: " + str(round(time_1 - init_time, 6)) + ' ' + str(file_size))
+	logger.info("DOWN: " + str(round(time_1 - init_time, 6)) + ' ' + str(time.time())  + ' ' + str(file_size))
 	return file_part
 
 def upload_time(conn, encoded_data, init_time):
@@ -31,7 +31,23 @@ def upload_time(conn, encoded_data, init_time):
 
 # Number of packets received over time from the server?
 def received_packets(file):
-	pass
+	start_time = None
+	packet_times = []
+	packet_size = None
+	occurance_time = []
+	with open(file, "r") as f:
+		for line in f:
+			all_info = line.split(' ')
+			log_info = all_info[0].split(':')
+			if log_info[1] == "__main__":
+				start_time = float(all_info[1])
+			if log_info[2] == "DOWN":
+				packet_size = all_info[3]
+				occurance_time.append(float(all_info[2]) - start_time)
+				packet_times.append(float(all_info[1]))
+
+	plt.scatter(occurance_time, packet_times)
+	plt.show()
 
 # Upload packet times
 def sent_packets(file):
@@ -47,17 +63,15 @@ def response_times(file):
 		for line in f:
 			all_info = line.split(' ')
 			log_info = all_info[0].split(':')
-			try:
-				log_info[1]
-			except Exception as e:
-				print (log_info)
-			if log_info[1] == '__main__':
+			if log_info[1] == "__main__":
 				start_time = float(all_info[1])
 			if log_info[2] == "RESP":
 				response_times.append(float(all_info[1]))
 				occurance_times.append(float(all_info[2]) - start_time)
 
 	plt.scatter(occurance_times, response_times)
+	plt.xlabel("Time since client connected (s)")
+	plt.ylabel("Response Time (s)")
 	plt.show()
 
 # All times are in one file, we split for individual analysis
@@ -107,5 +121,4 @@ if __name__ == "__main__":
 	split_log(file)
 
 	response_times("separated_logs/log_0.txt")
-	response_times("separated_logs/log_1.txt")
-	response_times("separated_logs/log_2.txt")
+	received_packets("separated_logs/log_0.txt")
