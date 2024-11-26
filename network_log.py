@@ -30,6 +30,8 @@ def upload_time(conn, encoded_data, init_time):
 #######################################################################################################################################
 
 # Number of packets received over time from the server?
+# Differentiate Download Times and Files Transfer Rates
+# Does Techincally Work just averages ALL File Transfer Rates and times
 def received_packets(file):
 	start_time = None
 	packet_times = []
@@ -50,9 +52,10 @@ def received_packets(file):
 	plt.scatter(occurance_time, packet_times)
 
 	average_time = sum(packet_times) / len(packet_times)
-	print ("AVG", average_time, "NUM", len(packet_times), "LEN", packet_size)
-	print ("Bps", sum(packet_times) / average_time)
-	print ("MBps", (sum(packet_times) / average_time) / (1 * 10**6))
+
+	print ("AVG Transmission Time", round(average_time, 2), "NUM", len(packet_times), "LEN", packet_size)
+	print ("AVG Bps", round(packet_size / sum(packet_times), 2))
+	print ("AVG MBps", round((packet_size / sum(packet_times)) / (1 * 10**6), 2))
 
 	plt.show()
 
@@ -110,8 +113,6 @@ def split_log(file):
 
 		temp_log.append(line)
 
-	print (len(logs))
-
 	directory = "separated_logs"
 	try:
 		os.mkdir(directory)
@@ -133,5 +134,5 @@ if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
 
-	response_times("separated_logs/log_2.txt")
-	received_packets("separated_logs/log_2.txt")
+	response_times("separated_logs/log_0.txt")
+	received_packets("separated_logs/log_0.txt")
