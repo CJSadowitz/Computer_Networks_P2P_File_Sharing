@@ -50,13 +50,23 @@ def received_packets(file):
 				packet_times.append(float(all_info[1]))
 
 	plt.scatter(occurance_time, packet_times)
-
-	average_time = sum(packet_times) / len(packet_times)
-
-	print ("AVG Transmission Time", round(average_time, 2), "NUM", len(packet_times), "LEN", packet_size)
-	print ("AVG Bps", round(packet_size / sum(packet_times), 2))
-	print ("AVG MBps", round((packet_size / sum(packet_times)) / (1 * 10**6), 2))
-
+	try:
+		average_time = sum(packet_times) / len(packet_times)
+	except Exception as e:
+		print (e)
+	print ("DOWNLOAD")
+	try:
+		print ("AVG Response Time", average_time, "NUM", len(packet_times), "LEN", packet_size)
+	except Exception as e:
+		print (e)
+	try:
+		print ("AVG Bps", round(packet_size / sum(packet_times), 2))
+		print ("AVG MBps", round((packet_size / sum(packet_times)) / (1 * 10**6), 2))
+	except Exception as e:
+		print (e)
+	plt.xlabel("Time since client connected (s)")
+	plt.ylabel("Response Time (s)")
+	plt.title(str(file))
 	plt.show()
 
 # Upload packet times
@@ -85,9 +95,13 @@ def response_times(file):
 	plt.xlabel("Time since client connected (s)")
 	plt.ylabel("Response Time (s)")
 
-	average_time = sum(response_times) / len(response_times)
-	print ("RESPONSE: AVG", average_time)
+	try:
+		average_time = sum(response_times) / len(response_times)
+		print ("RESPONSE: AVG", average_time)
+	except Exception as e:
+		print (e)
 
+	plt.title(str(file))
 	plt.show()
 
 # All times are in one file, we split for individual analysis
@@ -134,5 +148,9 @@ if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
 
-	response_times("separated_logs/log_0.txt")
-	received_packets("separated_logs/log_0.txt")
+	for file in os.listdir("separated_logs"):
+		filename = os.fsdecode("separated_logs/" + str(file))
+		response_times(filename)
+		received_packets(filename)
+	# response_times("separated_logs/log_0.txt")
+	# received_packets("separated_logs/log_0.txt")
