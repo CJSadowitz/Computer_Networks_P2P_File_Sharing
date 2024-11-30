@@ -148,7 +148,7 @@ def write_logs(logs_list, directory):
 if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
-	directory = "separated_logs")
+	directory = "separated_logs"
 
 	for file in os.listdir("separated_logs"):
 		path = os.path.join(directory, str(file))
