@@ -138,7 +138,8 @@ def split_log(file):
 def write_logs(logs_list, directory):
 	i = 0
 	for log in logs_list:
-		with open(directory + "/log_" + str(i) + ".txt", "w") as f:
+		path = os.path.join(directory, "log_" + str(i) + ".txt")
+		with open(path, "w") as f:
 			for line in log:
 				f.write(line)
 			i += 1
@@ -147,9 +148,11 @@ def write_logs(logs_list, directory):
 if __name__ == "__main__":
 	file = "response_times.log"
 	split_log(file)
+	directory = "separated_logs")
 
 	for file in os.listdir("separated_logs"):
-		filename = os.fsdecode("separated_logs/" + str(file))
+		path = os.path.join(directory, str(file))
+		filename = os.fsdecode(path)
 		response_times(filename)
 		received_packets(filename)
 	# response_times("separated_logs/log_0.txt")
