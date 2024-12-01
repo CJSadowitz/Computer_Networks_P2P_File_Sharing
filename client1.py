@@ -234,6 +234,7 @@ def upload(): #used for uploading files to the server, not currently functional
                 #    while chunk := f.read(1024):
                 #        client_upload.sendall(chunk)
                 upload_time(client_upload, filename, init_time)
+                messagebox.showinfo("Upload successful", f"Upload of {os.path.basename(filename)} complete")
             else:
                 messagebox.showwarning("Upload Failed", f"{data}")
         else:
