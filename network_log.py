@@ -92,6 +92,7 @@ def sent_packets(file):
 	print ("UPLOAD")
 	try:
 		print ("MBps: ", file_size / sum(packet_times) / (1 * 10**6))
+		print ("Total Transfer Time =", sum(packet_times))
 	except Exception as e:
 		print (e)
 

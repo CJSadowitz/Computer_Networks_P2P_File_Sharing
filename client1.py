@@ -197,7 +197,7 @@ def chngdirectory(): #used for updating the currentWorkingServerDirectory and th
 
 def upload(): #used for uploading files to the server, not currently functional
     filename = filedialog.askopenfilename(initialdir="/", title="Select a file to upload", filetypes=(
-    ("Text files", "*.txt*"), ("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
+    ("Text files", "*.txt*"), ("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*"), ("Video files", "*.mov")))
     file_size = os.path.getsize(filename)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_upload:
         # Connect to the server
