@@ -11,7 +11,9 @@ PORT = 53849 #default port for the server
 ADDR = (IP,PORT)
 SIZE = 1024
 FORMAT = "utf-8"
-creds = {'jordan': ['salt', '7a37b85c8918eac19a9089c0fa5a2ab4dce3f90528dcdeec108b23ddf3607b99']}
+creds = {'jordan': ['salt', '7a37b85c8918eac19a9089c0fa5a2ab4dce3f90528dcdeec108b23ddf3607b99'],
+         "colin": ['fini', "91acb611c2fd0ffd3ba626540781978c0c1d06ec826856eba62570af3c4216ad"]}
+# usr == colin password == freedom
 filedata = []
 
 auth_tokens = set()
@@ -24,6 +26,8 @@ def check_size(filename, filesize):
     elif ext == 'mp3' and filesize < 1073741824:
         return True
     elif ext == 'mp4' and filesize < 2147483648:
+        return True
+    elif ext == 'mov' and filesize < 2147483684:
         return True
     else:
         return False
@@ -117,11 +121,13 @@ def handle_client (conn, addr):
         elif cmd == "UPLOAD":
             conn.send("OK||Authorized Upload".encode(FORMAT))
             file_name = conn.recv(SIZE).decode()
+
             # Checks if filename exists
             if file_name in filedata:
                 conn.send("EXISTS||File already exists".encode(FORMAT))
             else:
                 conn.send("OK||File does not exist".encode(FORMAT))
+
             file_size = conn.recv(SIZE).decode()
             cmd, file_size = file_size.split("||")
             # Gets OK response if client wants to proceed to overwrite or if file doesn't exist yet

@@ -203,12 +203,16 @@ def upload(): #used for uploading files to the server, not currently functional
         # Connect to the server
         client_upload.connect(ADDR)
         # Initiate upload
-        client_upload.send(f"UPLOAD||File Upload;{TOKEN}".encode(FORMAT))
-        cmd, data = client_upload.recv(SIZE).decode(FORMAT).split('||')
+        encoded_message = f"UPLOAD||File Upload;{TOKEN}".encode(FORMAT)
+        response, init_time = response_time(client_upload, encoded_message)
+        cmd, data = response.decode(FORMAT).split('||')
+
         if cmd == 'OK':
             # Verify file does not already exist
-            client_upload.send(os.path.basename(filename).encode(FORMAT))
-            cmd, data = client_upload.recv(SIZE).decode(FORMAT).split("||")
+            encoded_message = os.path.basename(filename).encode(FORMAT)
+            response, init_time = response_time(client_upload, encoded_message)
+            cmd, data = response.decode(FORMAT).split('||')
+
             if cmd == 'OK':
                 pass
             elif cmd == 'EXISTS':
@@ -219,14 +223,17 @@ def upload(): #used for uploading files to the server, not currently functional
                     client_upload.send(f'FAIL||Don\'t Overwrite'.encode(FORMAT))
                     return
             # Verify file is not too large
-            client_upload.send(f"OK||{str(os.path.getsize(filename))}".encode(FORMAT))
-            print("OK||" + str(os.path.getsize(filename)))
-            cmd, data = client_upload.recv(SIZE).decode(FORMAT).split("||")
+
+            encoded_message = f"OK||{str(os.path.getsize(filename))}".encode(FORMAT)
+            response, init_time = response_time(client_upload, encoded_message)
+            cmd, data = response.decode(FORMAT).split("||")
+
             if cmd == 'OK':
                 # Send File
-                with open(filename, 'rb') as f:
-                    while chunk := f.read(1024):
-                        client_upload.sendall(chunk)
+                # with open(filename, 'rb') as f:
+                #    while chunk := f.read(1024):
+                #        client_upload.sendall(chunk)
+                upload_time(client_upload, filename, init_time)
             else:
                 messagebox.showwarning("Upload Failed", f"{data}")
         else:

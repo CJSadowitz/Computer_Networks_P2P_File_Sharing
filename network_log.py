@@ -22,10 +22,12 @@ def download_time(conn, init_time, file_size):
 	logger.info("DOWN: " + str(round(time_1 - init_time, 6)) + ' ' + str(time.time())  + ' ' + str(file_size))
 	return file_part, time_1
 
-def upload_time(conn, encoded_data, init_time):
-	conn.send(encoded_data)
-	time_1 = time.time()
-	logger.info("UPLD: " + str(time_1 - init_time))
+def upload_time(conn, file, init_time):
+	with open(file, "rb") as f:
+		while chunk := f.read(1024):
+			conn.sendall(chunk)
+			time_0 = time.time()
+			logger.info("UPLD: " + str(round(time_0 - init_time, 6)) + ' ' + str(time_0))
 
 #######################################################################################################################################
 ### DATA ANALYSIS ###
