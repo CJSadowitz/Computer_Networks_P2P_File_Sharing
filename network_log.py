@@ -25,9 +25,10 @@ def download_time(conn, init_time, file_size):
 def upload_time(conn, file, init_time):
 	with open(file, "rb") as f:
 		while chunk := f.read(1024):
+			time_a = time.time()
 			conn.sendall(chunk)
 			time_0 = time.time()
-			logger.info("UPLD: " + str(round(time_0 - init_time, 6)) + ' ' + str(time_0))
+			logger.info("UPLD: " + str(round(time_0 - time_a, 6)) + ' ' + str(time_0) + ' ' + str(os.path.getsize(file)))
 
 #######################################################################################################################################
 ### DATA ANALYSIS ###
@@ -75,7 +76,30 @@ def received_packets(file):
 
 # Upload packet times
 def sent_packets(file):
-	pass
+	file_size = None
+	start_time = None
+	packet_times = []
+	occurance_times = []
+	with open(file, 'r') as f:
+		for line in f:
+			all_info = line.split(' ')
+			log_info = all_info[0].split(':')
+			if log_info[2] == "UPLD":
+				packet_times.append(float(all_info[1]))
+				occurance_times.append(float(all_info[2]))
+				file_size = float(all_info[3])
+
+	print ("UPLOAD")
+	try:
+		print ("MBps: ", file_size / sum(packet_times) / (1 * 10**6))
+	except Exception as e:
+		print (e)
+
+	plt.scatter(occurance_times, packet_times)
+	plt.title(str(file))
+	plt.xlabel("Time since client connected (s)")
+	plt.ylabel("Upload Time (s)")
+	plt.show()
 
 # Response times since the start of the clients connection
 def response_times(file):
@@ -157,7 +181,8 @@ if __name__ == "__main__":
 	for file in os.listdir("separated_logs"):
 		path = os.path.join(directory, str(file))
 		filename = os.fsdecode(path)
-		response_times(filename)
-		received_packets(filename)
+		# response_times(filename)
+		# received_packets(filename)
+		sent_packets(filename)
 	# response_times("separated_logs/log_0.txt")
 	# received_packets("separated_logs/log_0.txt")
