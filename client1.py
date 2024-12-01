@@ -9,9 +9,11 @@ import tqdm
 import time
 import logging
 from network_log import response_time, download_time, upload_time
+import os
 
 logger = logging.getLogger(__name__)
 
+TOKEN = ''
 IP = 'localhost' #default IP
 PORT = 4450 #default port
 ADDR = (IP, PORT)
@@ -19,6 +21,16 @@ SIZE = 1024
 FORMAT = "utf-8"
 
 currentWorkingServerDirectory = ""
+
+
+def check_auth(auth):
+    try:
+        cmd, msg = auth.split('||')
+        if cmd == 'DSC':
+            messagebox.showwarning("Connection Status", f"{msg}")
+            return False
+    except Exception as e:
+        return True
 
 
 def hideWidget(widget): #helper function to easily hide a widget
@@ -63,18 +75,27 @@ def connect(): #simple function used for the client to initially connect to the 
     global IP
     global PORT
     global ADDR
+    global TOKEN
     IP = IP_entry.get()
     PORT = PORT_entry.get()
+    username = userName_entry.get()
+    password = PASS_entry.get()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_CON:
         if IP and PORT:
             ADDR = (IP, int(PORT))
             client_CON.connect(ADDR)
-            messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
-            client_CON.send("LOGOUT||0".encode(FORMAT))
-            connectGridDeactivate()
+            client_CON.send(f"LOGIN||{username};{password}".encode(FORMAT))
+            data = client_CON.recv(SIZE).decode(FORMAT)
+            cmd, msg = data.split('||')
+            if cmd == 'OK':
+                messagebox.showinfo("Connection Status", f"'{ADDR}' successful!")
+                TOKEN = msg
+                connectGridDeactivate()
+                direct(".")
+            else:
+                messagebox.showwarning("Connection Status", "Incorrect Username or Password")
         else:
             messagebox.showwarning("Input Needed", "Please enter a valid file server address.")
-    direct(".")
 
 def direct(directory): #used to obtain the directory information regarding the currentWorkingServerDirectory, separates it into files and folders
     global ADDR
@@ -82,9 +103,14 @@ def direct(directory): #used to obtain the directory information regarding the c
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_DIR:
             cmd = "DIR"
             client_DIR.connect(ADDR)
-            combined = cmd + "||" + directory
+            combined = cmd + "||" + directory + ";" + TOKEN
 
             files, init_time = response_time(client_DIR, combined.encode(FORMAT))
+
+            if check_auth(files):
+                pass
+            else:
+                return
             ack = 0
 
             files = files.decode('utf-8')
@@ -172,7 +198,39 @@ def chngdirectory(): #used for updating the currentWorkingServerDirectory and th
 def upload(): #used for uploading files to the server, not currently functional
     filename = filedialog.askopenfilename(initialdir="/", title="Select a file to upload", filetypes=(
     ("Text files", "*.txt*"), ("Audio files", "*.mp3*"), ("Audio files", "*.flac*"), ("Video files", "*.mp4*")))
-
+    file_size = os.path.getsize(filename)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_upload:
+        # Connect to the server
+        client_upload.connect(ADDR)
+        # Initiate upload
+        client_upload.send(f"UPLOAD||File Upload;{TOKEN}".encode(FORMAT))
+        cmd, data = client_upload.recv(SIZE).decode(FORMAT).split('||')
+        if cmd == 'OK':
+            # Verify file does not already exist
+            client_upload.send(os.path.basename(filename).encode(FORMAT))
+            cmd, data = client_upload.recv(SIZE).decode(FORMAT).split("||")
+            if cmd == 'OK':
+                pass
+            elif cmd == 'EXISTS':
+                answer = messagebox.askquestion("File Exists", "File exists would you like to overwrite it.")
+                if answer == 'yes':
+                    pass
+                else:
+                    client_upload.send(f'FAIL||Don\'t Overwrite'.encode(FORMAT))
+                    return
+            # Verify file is not too large
+            client_upload.send(f"OK||{str(os.path.getsize(filename))}".encode(FORMAT))
+            print("OK||" + str(os.path.getsize(filename)))
+            cmd, data = client_upload.recv(SIZE).decode(FORMAT).split("||")
+            if cmd == 'OK':
+                # Send File
+                with open(filename, 'rb') as f:
+                    while chunk := f.read(1024):
+                        client_upload.sendall(chunk)
+            else:
+                messagebox.showwarning("Upload Failed", f"{data}")
+        else:
+            messagebox.showwarning("Upload Failed", f"{data}")
 
 def download(updateinterval=1): #used for downloading a selected file from the server
     global ADDR
@@ -185,7 +243,7 @@ def download(updateinterval=1): #used for downloading a selected file from the s
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_error:
             client_error.connect(ADDR)
             big_path = currentWorkingServerDirectory + '/' + filename
-            combined = command + "||" + big_path
+            combined = command + "||" + big_path + ";" + TOKEN
             client_error.send(combined.encode(FORMAT))
 
             test = client_error.recv(SIZE).decode(FORMAT)
@@ -200,7 +258,7 @@ def download(updateinterval=1): #used for downloading a selected file from the s
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_Download: #initiates the download with the server
         client_Download.connect(ADDR)
         cmd = "DOWNLOAD"
-        combined = cmd + "||" + big_path
+        combined = cmd + "||" + big_path + ";" + TOKEN
 
         try:
             filesize, init_time = response_time(client_Download, combined.encode(FORMAT))
@@ -232,7 +290,7 @@ def delete(): #used for deleting a selected item (file or directory from the ser
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_DEL:
                 client_DEL.connect(ADDR)
                 entire_path = currentWorkingServerDirectory + '/' + option
-                combined = "DEL" + "||" + entire_path
+                combined = "DEL" + "||" + entire_path + ";" + TOKEN
 
                 result = response_time(client_DEL, combined.encode(FORMAT))
 
@@ -260,7 +318,7 @@ def makeDirectory(): #used for creating new directories on the server, has check
             global currentWorkingServerDirectory
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_mkDir:
                 client_mkDir.connect(ADDR)
-                combined = cmd + "||" + currentWorkingServerDirectory
+                combined = cmd + "||" + currentWorkingServerDirectory + ";" + TOKEN
 
                 cmd_ack = response_time(client_mkDir, combined.encode(FORMAT))
                 ack, init_time = response_time(client_mkDir, newFolder.encode(FORMAT))

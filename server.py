@@ -3,22 +3,81 @@ import socket
 import threading
 import json
 import time
+import secrets
+import hashlib
 
 IP = "127.0.0.1" #default IP for the server
 PORT = 53849 #default port for the server
 ADDR = (IP,PORT)
 SIZE = 1024
 FORMAT = "utf-8"
+creds = {'jordan': ['salt', '7a37b85c8918eac19a9089c0fa5a2ab4dce3f90528dcdeec108b23ddf3607b99']}
+filedata = []
+
+auth_tokens = set()
+
+
+def check_size(filename, filesize):
+    ext = filename.split(".")[1]
+    if ext == 'txt' and filesize < 26214400:
+        return True
+    elif ext == 'mp3' and filesize < 1073741824:
+        return True
+    elif ext == 'mp4' and filesize < 2147483648:
+        return True
+    else:
+        return False
+
+
+def get_salt(username):
+    if username in creds:
+        return creds[username][0]
+    else:
+        return None
+
+
+def check_creds(username, password):
+    salt = get_salt(username)
+    hashing = hashlib.sha256()
+    hashing.update(password.encode('utf-8') + salt.encode('utf-8'))
+    hashed = hashing.hexdigest()
+    if creds[username][1] == hashed:
+        return True
+    else:
+        return False
+
+
+def handle_login(username, password, conn):
+    if check_creds(username, password):
+        token = secrets.token_hex(2)
+        auth_tokens.add(token)
+        conn.send(f"OK||{token}".encode(FORMAT))
+    else:
+        conn.send("DSC||Incorrect Password".encode(FORMAT))
+    conn.close()
 
 def handle_client (conn, addr):
+        global filedata
     # server receives initial data from the client in the format COMMAND||DATA
         received =  conn.recv(SIZE).decode(FORMAT)
-        cmd = received.split("||")[0]
-        data = received.split("||")[1]
-        print (received)
+        cmd, data = received.split("||")
+        print(received.split(";"))
         if cmd == "LOGOUT":
+            auth_tokens.remove(data)
             conn.close()
-        elif cmd == "DIR": #client wants directory information
+            return
+        elif cmd == "LOGIN":
+            username, password = data.split(';')
+            handle_login(username, password, conn)
+            conn.close()
+            return
+        else:
+            data, token = data.split(';')
+            if token not in auth_tokens:
+                conn.send("DSC||Authentication Error".encode(FORMAT))
+                conn.close()
+                return
+        if cmd == "DIR": #client wants directory information
             directory_path = ""  # Current directory
             if data == '.' or data == '': # Fixed Logic
                 directory_path = ""
@@ -55,7 +114,38 @@ def handle_client (conn, addr):
                 conn.send(cwd.encode(FORMAT))
                 conn.send(f"Invalid directory".encode(FORMAT))
                 conn.close()
-
+        elif cmd == "UPLOAD":
+            conn.send("OK||Authorized Upload".encode(FORMAT))
+            file_name = conn.recv(SIZE).decode()
+            # Checks if filename exists
+            if file_name in filedata:
+                conn.send("EXISTS||File already exists".encode(FORMAT))
+            else:
+                conn.send("OK||File does not exist".encode(FORMAT))
+            file_size = conn.recv(SIZE).decode()
+            cmd, file_size = file_size.split("||")
+            # Gets OK response if client wants to proceed to overwrite or if file doesn't exist yet
+            if cmd == "OK":
+                # Accepts the download
+                try:
+                    file_size = int(file_size)
+                    if check_size(file_name, file_size):
+                        conn.send("OK||Ready to receive file".encode(FORMAT))
+                        with open(file_name, 'wb') as f:
+                            num_recv = 0
+                            while num_recv < file_size:
+                                chunk = conn.recv(1024)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                num_recv += len(chunk)
+                    else:
+                        conn.send("FAIL||File could not be uploaded".encode(FORMAT))
+                except Exception as er:
+                    conn.send(f"ERROR||{er}".encode(FORMAT))
+            else:
+                conn.send("FAIL||File could not be uploaded".encode(FORMAT))
+            conn.close()
         elif cmd == "DOWNLOAD": #client wants to download a file from the server
             entire_path = os.getcwd() + data #obtaining the absolute path of the file to be downloaded
             filesize = -1 #flag value in case the file does not exist
@@ -117,6 +207,7 @@ def handle_client (conn, addr):
                 except OSError:
                     conn.send("NotEmpty".encode(FORMAT))
         else:
+            print(cmd)
             send_data = "Unknown command\n"
             conn.send(send_data.encode(FORMAT))
         conn.close()

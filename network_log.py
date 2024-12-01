@@ -2,6 +2,8 @@ import logging
 import time
 import os
 from matplotlib import pyplot as plt
+SIZE = 1024
+FORMAT = "utf-8"
 
 logger = logging.getLogger(__name__)
 
