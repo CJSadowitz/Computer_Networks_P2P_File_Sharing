@@ -32,6 +32,22 @@ def check_auth(auth):
     except Exception as e:
         return True
 
+def encrypt(creds, n, e):
+    creds = creds.encode(FORMAT)
+    creds = int.from_bytes(creds, byteorder='big')
+    creds = pow(creds, int(e), int(n))
+    return creds
+
+
+def login(username, password, conn):
+    conn.send(f"LOGIN||Public Keys".encode(FORMAT))
+    cmd, data = conn.recv(SIZE).decode(FORMAT).split("||")
+    n, e = data.split(';')
+    username = encrypt(username, n, e)
+    password = encrypt(password, n, e)
+    conn.send(f"{username};{password}".encode(FORMAT))
+
+
 
 def hideWidget(widget): #helper function to easily hide a widget
     widget.grid_forget()
@@ -84,7 +100,7 @@ def connect(): #simple function used for the client to initially connect to the 
         if IP and PORT:
             ADDR = (IP, int(PORT))
             client_CON.connect(ADDR)
-            client_CON.send(f"LOGIN||{username};{password}".encode(FORMAT))
+            login(username, password, client_CON)
             data = client_CON.recv(SIZE).decode(FORMAT)
             cmd, msg = data.split('||')
             if cmd == 'OK':
