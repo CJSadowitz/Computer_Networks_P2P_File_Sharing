@@ -15,6 +15,7 @@ FORMAT = "utf-8"
 creds = {'jordan': ['salt', '7a37b85c8918eac19a9089c0fa5a2ab4dce3f90528dcdeec108b23ddf3607b99'],
          "colin": ['fini', "91acb611c2fd0ffd3ba626540781978c0c1d06ec826856eba62570af3c4216ad"]}
 # usr == colin password == freedom
+# usr == jordan password == password
 filedata = []
 
 auth_tokens = set()
@@ -40,6 +41,7 @@ def check_size(filename, filesize):
         return False
 
 
+# Gets the salt value associated with a username for hashing
 def get_salt(username):
     if username in creds:
         return creds[username][0]
@@ -47,6 +49,7 @@ def get_salt(username):
         return None
 
 
+# Hashes and compares password to stored credentials
 def check_creds(username, password):
     salt = get_salt(username)
     hashing = hashlib.sha256()
@@ -57,6 +60,7 @@ def check_creds(username, password):
     else:
         return False
 
+# Standard RSA decryption
 def decrypt(enc):
     global n
     global d
@@ -66,6 +70,7 @@ def decrypt(enc):
     return enc
 
 
+# Validates username and password
 def handle_login(username, password, conn):
     username = decrypt(username)
     password = decrypt(password)

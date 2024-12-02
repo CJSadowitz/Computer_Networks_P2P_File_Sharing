@@ -23,6 +23,7 @@ FORMAT = "utf-8"
 currentWorkingServerDirectory = ""
 
 
+# ensures user is authenticated
 def check_auth(auth):
     try:
         cmd, msg = auth.split('||')
@@ -32,6 +33,7 @@ def check_auth(auth):
     except Exception as e:
         return True
 
+# Standard RSA encryption
 def encrypt(creds, n, e):
     creds = creds.encode(FORMAT)
     creds = int.from_bytes(creds, byteorder='big')
@@ -39,6 +41,7 @@ def encrypt(creds, n, e):
     return creds
 
 
+# Parses login parameters to user
 def login(username, password, conn):
     conn.send(f"LOGIN||Public Keys".encode(FORMAT))
     cmd, data = conn.recv(SIZE).decode(FORMAT).split("||")
@@ -251,6 +254,7 @@ def upload(): #used for uploading files to the server, not currently functional
                 #        client_upload.sendall(chunk)
                 upload_time(client_upload, filename, init_time)
                 messagebox.showinfo("Upload successful", f"Upload of {os.path.basename(filename)} complete")
+                direct('.')
             else:
                 messagebox.showwarning("Upload Failed", f"{data}")
         else:
