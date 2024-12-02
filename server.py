@@ -161,14 +161,16 @@ def handle_client (conn, addr):
                     file_size = int(file_size)
                     if check_size(file_name, file_size):
                         conn.send("OK||Ready to receive file".encode(FORMAT))
+                        # Continuously recieves code chunks
                         with open(file_name, 'wb') as f:
                             num_recv = 0
+                            # Ensures nothing beyond the file length is writen to it
                             while num_recv < file_size:
-                                chunk = conn.recv(1024)
-                                if not chunk:
+                                bytes_recv = conn.recv(1024)
+                                if not bytes_recv:
                                     break
-                                f.write(chunk)
-                                num_recv += len(chunk)
+                                f.write(bytes_recv)
+                                num_recv += len(bytes_recv)
                     else:
                         conn.send("FAIL||File could not be uploaded".encode(FORMAT))
                 except Exception as er:
