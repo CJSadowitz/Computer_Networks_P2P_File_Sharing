@@ -15,7 +15,7 @@ The port is always `53849` unless changed by you </br>
 To run client: `python3 client1.py` </br>
 Assuming Local: Change IP to correct IP address as need </br>
 IP: `127.0.0.1` </br>
-PORT: `53849` </br>
+PORT: `9999` </br>
 USERNAME: `colin` or `jordan` </br>
 PASSOWRD: `freedom` or `password` </br>
 
