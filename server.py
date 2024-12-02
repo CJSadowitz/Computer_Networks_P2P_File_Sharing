@@ -5,9 +5,10 @@ import json
 import time
 import secrets
 import hashlib
+from Crypto.PublicKey import RSA
 
 IP = "127.0.0.1" #default IP for the server
-PORT = 53849 #default port for the server
+PORT = 9999 #default port for the server
 ADDR = (IP,PORT)
 SIZE = 1024
 FORMAT = "utf-8"
@@ -17,6 +18,12 @@ creds = {'jordan': ['salt', '7a37b85c8918eac19a9089c0fa5a2ab4dce3f90528dcdeec108
 filedata = []
 
 auth_tokens = set()
+
+key = RSA.generate(1024)
+public_key = key.publickey()
+n = public_key.n
+exp = public_key.e
+d = key.d
 
 
 def check_size(filename, filesize):
@@ -50,8 +57,18 @@ def check_creds(username, password):
     else:
         return False
 
+def decrypt(enc):
+    global n
+    global d
+    enc = pow(int(enc), d, n)
+    enc = enc.to_bytes((enc.bit_length() + 7) // 8, byteorder='big')
+    enc = enc.decode(FORMAT)
+    return enc
+
 
 def handle_login(username, password, conn):
+    username = decrypt(username)
+    password = decrypt(password)
     if check_creds(username, password):
         token = secrets.token_hex(2)
         auth_tokens.add(token)
@@ -65,13 +82,15 @@ def handle_client (conn, addr):
     # server receives initial data from the client in the format COMMAND||DATA
         received =  conn.recv(SIZE).decode(FORMAT)
         cmd, data = received.split("||")
-        print(received.split(";"))
+        print(cmd)
         if cmd == "LOGOUT":
             auth_tokens.remove(data)
             conn.close()
             return
         elif cmd == "LOGIN":
-            username, password = data.split(';')
+            conn.send(f"KEYS||{n};{exp}".encode(FORMAT))
+            logins = conn.recv(SIZE).decode(FORMAT)
+            username, password = logins.split(';')
             handle_login(username, password, conn)
             conn.close()
             return
