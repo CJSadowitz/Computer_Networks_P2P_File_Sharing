@@ -117,7 +117,6 @@ def response_times(file):
 				start_time = float(all_info[1])
 			if log_info[2] == "RESP":
 				response_times.append(float(all_info[1]))
-				# occurance_times.append(float(all_info[2]) - start_time)
 				occurance_times.append(float(all_info[2]))
 
 	plt.scatter(occurance_times, response_times)
@@ -139,7 +138,6 @@ def split_log(file):
 	temp_log = []
 	with open(file, "r") as f:
 		lines = f.readlines()
-		# This data V is not read: temp sol to bad code
 		lines.append(lines[0])
 
 		length = len(lines)
@@ -182,8 +180,7 @@ if __name__ == "__main__":
 	for file in os.listdir("separated_logs"):
 		path = os.path.join(directory, str(file))
 		filename = os.fsdecode(path)
-		# response_times(filename)
-		# received_packets(filename)
+		# This will display a graph even if there is no information, something to work on for future work :)
+		response_times(filename)
+		received_packets(filename)
 		sent_packets(filename)
-	# response_times("separated_logs/log_0.txt")
-	# received_packets("separated_logs/log_0.txt")
